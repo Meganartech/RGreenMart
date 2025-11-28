@@ -17,165 +17,117 @@ try {
     $conn = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
     $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_bill'])) {
-        // Sanitize and validate POST data
-        $customerName = htmlspecialchars($_POST['customer_name'] ?? '', ENT_QUOTES, 'UTF-8');
-        $customerMobile = htmlspecialchars($_POST['customer_mobile'] ?? '', ENT_QUOTES, 'UTF-8');
-        $customerEmail = htmlspecialchars($_POST['customer_email'] ?? '', ENT_QUOTES, 'UTF-8');
-        $customerState = htmlspecialchars($_POST['customer_state'] ?? '', ENT_QUOTES, 'UTF-8');
-        $customerCity = htmlspecialchars($_POST['customer_city'] ?? '', ENT_QUOTES, 'UTF-8');
-        $customerAddress = htmlspecialchars($_POST['customer_address'] ?? '', ENT_QUOTES, 'UTF-8');
-        $itemsBought = json_decode($_POST['items_bought'] ?? '[]', true);
-        $orderedDateTime = isset($_POST['ordered_date_time']) ? htmlspecialchars($_POST['ordered_date_time'], ENT_QUOTES, 'UTF-8') : date('Y-m-d H:i:s');
-
-        // Validate required fields
-        if (empty($customerName) || empty($customerMobile) || empty($customerEmail) || empty($customerState) || empty($customerCity) || empty($customerAddress)) {
-            echo "<p style='color: #dc2626;'>Error: All required fields must be filled.</p>";
-            exit;
-        }
-
-        // Validate emails
-        if (!filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
-            echo "<p style='color: #dc2626;'>Error: Invalid customer email address.</p>";
-            exit;
-        }
-
-        if (!is_array($itemsBought) || empty($itemsBought)) {
-            echo "<p style='color: #dc2626;'>Error: No items selected for the bill.</p>";
-            exit;
-        }
-
-        // Fetch and increment enquiry number
-        try {
-            $conn->beginTransaction();
-            $stmt = $conn->query("SELECT last_enquiry_number FROM settings LIMIT 1 FOR UPDATE");
-            $row = $stmt->fetch(PDO::FETCH_ASSOC);
-            $enquiryNumber = $row ? (int)$row['last_enquiry_number'] + 1 : 1001;
-            $conn->exec("UPDATE settings SET last_enquiry_number = $enquiryNumber");
-            $conn->commit();
-        } catch (PDOException $e) {
-            $conn->rollBack();
-            error_log("Failed to generate enquiry number: " . $e->getMessage());
-            echo "<p style='color: #dc2626;'>Error: Failed to generate enquiry number.</p>";
-            exit;
-        }
-
-        // Fetch admin details from DB
-        $adminStmt = $conn->query("SELECT name, phone, email, shopaddress FROM admin_details LIMIT 1");
-        $admin = $adminStmt->fetch(PDO::FETCH_ASSOC);
-        $adminName = $admin['name'] ?? 'RGreen Enterprise';
-        $adminMobile = $admin['phone'] ?? '6358986751';
-        $adminEmail = $admin['email'] ?? 'arunbabuks03@gmail.com';
-        $adminAddress = $admin['shopaddress'] ?? 'Chandragandhi Nagar, Madurai, Tamil Nadu';
-
-        // Validate admin email
-        if (!filter_var($adminEmail, FILTER_VALIDATE_EMAIL)) {
-            error_log("Invalid admin email: $adminEmail");
-            echo "<p style='color: #dc2626;'>Error: Invalid admin email address in database.</p>";
-            exit;
-        }
-
-        // Fetch GST rate from the settings table
-        $stmt = $conn->prepare("SELECT gst_rate FROM settings LIMIT 1");
-        $stmt->execute();
-        $settings = $stmt->fetch(PDO::FETCH_ASSOC);
-        $gstRate = isset($settings['gst_rate']) ? floatval($settings['gst_rate']) : 18;
-
-        // Fetch SMTP credentials from environment variables
-        $smtpEmail = $_ENV['SMTP_MAIL'] ?? '';
-        $smtpPassword = $_ENV['SMTP_PASSWORD'] ?? '';
-
-        if (empty($smtpEmail) || empty($smtpPassword)) {
-            error_log("SMTP credentials missing: SMTP_MAIL=$smtpEmail");
-            echo "<p style='color: #dc2626;'>Error: SMTP credentials are not configured.</p>";
-            exit;
-        }
-
-        // Calculate totals
-        $subtotal = 0;
-        $totalDiscountAmount = 0;
-        $netTotal = 0;
-        $totalGst = 0;
-		$packingcharge = 0;
-		$packingpercent = 3;
-        $rowsHtml = "";
-
-        foreach ($itemsBought as $index => $item) {
-            $grossPrice = $item['grossPrice'];
-            $netPrice = $grossPrice;// / (1 + $gstRate / 100);
-            $gstAmount = $grossPrice - $netPrice;
-            $discountAmount = $netPrice * ($item['discount'] / 100);
-            $discountedNetPrice = $netPrice - $discountAmount;
-            $simpleDiscountedPrice = $grossPrice * (1 - ($item['discount'] / 100));
-            $amount = ($discountedNetPrice) * $item['quantity']; //+ ($discountedNetPrice * ($gstRate / 100)))
-
-            $subtotal += $grossPrice * $item['quantity'];
-            $totalDiscountAmount += $discountAmount * $item['quantity'];
-            $netTotal += $discountedNetPrice * $item['quantity'];
-            $totalGst += ($discountedNetPrice * ($gstRate / 100)) * $item['quantity'];
-
-            $rowsHtml .= "<tr><td>" . ($index + 1) . "</td><td class='left'>" . htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8') . "</td><td>" . number_format($grossPrice, 2) . "</td><td>" . number_format($discountAmount, 2) . " (" . number_format($item['discount'], 2) . "%)</td><td>" . number_format($simpleDiscountedPrice, 2) . "</td><td>" . $item['quantity'] . "</td><td>" . number_format($amount, 2) . "</td></tr>";
-        }
-		$packingcharge = ($netTotal * $packingpercent)/100;
-        $overallTotal = $netTotal + $packingcharge; // + $totalGst;
-
-        // ---------------- SAVE ORDER & ITEMS IN DATABASE ----------------
-try {
-    $conn->beginTransaction();
-
-    // Insert into orders table
-    $stmt = $conn->prepare("
-        INSERT INTO orders 
-        (enquiry_no, name, mobile, email, state, city, address, subtotal, packing_charge, net_total, overall_total, order_date)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ");
-    
-    $stmt->execute([
-        $enquiryNumber,
-        $customerName,
-        $customerMobile,
-        $customerEmail,
-        $customerState,
-        $customerCity,
-        $customerAddress,
-        $subtotal,
-        $packingcharge,
-        $netTotal,
-        $overallTotal,
-        $orderedDateTime
-    ]);
-
-    $orderId = $conn->lastInsertId();
-
-    // Insert each item into order_items table
-    $stmtItem = $conn->prepare("
-        INSERT INTO order_items 
-        (order_id, product_name, price, discount, discounted_price, qty, amount)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    ");
-
-    foreach ($itemsBought as $item) {
-        $grossPrice = $item['grossPrice'];
-        $discountAmount = $grossPrice * ($item['discount'] / 100);
-        $discountedPrice = $grossPrice - $discountAmount;
-        $amount = $discountedPrice * $item['quantity'];
-
-        $stmtItem->execute([
-            $orderId,
-            $item['name'],
-            $grossPrice,
-            $item['discount'],
-            $discountedPrice,
-            $item['quantity'],
-            $amount
-        ]);
+    // --- START: CONVERTED FROM POST TO GET/DB FETCH ---
+    if (!isset($_GET['order_id'])) {
+        die("<p style='color: #dc2626;'>Error: Order ID missing in URL.</p>");
     }
 
-    $conn->commit();
-} catch (PDOException $e) {
-    $conn->rollBack();
-    error_log("Failed saving order: " . $e->getMessage());
-}
+    $orderId = intval($_GET['order_id']);
+
+    // 1. Fetch Order Details (Customer Info and Totals)
+    $orderStmt = $conn->prepare("SELECT * FROM orders WHERE id = ?");
+    $orderStmt->execute([$orderId]);
+    $order = $orderStmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$order) {
+        die("<p style='color: #dc2626;'>Error: Order ID $orderId not found.</p>");
+    }
+
+    // Map DB fields to variables
+    $customerName      = $order['name'];
+    $customerMobile    = $order['mobile'];
+    $customerEmail     = $order['email'];
+    $customerState     = $order['state'];
+    $customerCity      = $order['city'];
+    $customerAddress   = $order['address'];
+    $enquiryNumber     = $order['enquiry_no'];
+    $orderedDateTime   = $order['order_date'];
+    $packingchargeFromDB = $order['packing_charge'];
+    $netTotalFromDB    = $order['net_total'];
+    $overallTotalFromDB = $order['overall_total'];
+
+    // 2. Fetch Order Items
+    $itemsStmt = $conn->prepare("SELECT * FROM order_items WHERE order_id = ?");
+    $itemsStmt->execute([$orderId]);
+    $itemsBought = $itemsStmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    if (!$itemsBought) {
+        die("<p style='color: #dc2626;'>Error: No items found for order ID $orderId.</p>");
+    }
+
+    // Since the original POST logic involved *re-calculating* totals, we will
+    // stick to the original logic for generating the HTML to ensure consistency,
+    // but the $packingcharge and $overallTotal used for display will be based
+    // on the calculated values below, not the ones fetched from DB.
+    // We only need $enquiryNumber, $customerName, etc., for the invoice header.
+
+    // ---------------- Fetch Admin ------------------
+    $adminStmt = $conn->query("SELECT name, phone, email, shopaddress FROM admin_details LIMIT 1");
+    $admin = $adminStmt->fetch(PDO::FETCH_ASSOC);
+    $adminName = $admin['name'] ?? 'RGreen Enterprise';
+    $adminMobile = $admin['phone'] ?? '6358986751';
+    $adminEmail = $admin['email'] ?? 'arunbabuks03@gmail.com';
+    $adminAddress = $admin['shopaddress'] ?? 'Chandragandhi Nagar, Madurai, Tamil Nadu';
+
+    // Fetch GST rate from the settings table
+    $stmt = $conn->prepare("SELECT gst_rate FROM settings LIMIT 1");
+    $stmt->execute();
+    $settings = $stmt->fetch(PDO::FETCH_ASSOC);
+    $gstRate = isset($settings['gst_rate']) ? floatval($settings['gst_rate']) : 18;
+
+    // Fetch SMTP credentials from environment variables
+    $smtpEmail = $_ENV['SMTP_MAIL'] ?? '';
+    $smtpPassword = $_ENV['SMTP_PASSWORD'] ?? '';
+
+    if (empty($smtpEmail) || empty($smtpPassword)) {
+        error_log("SMTP credentials missing: SMTP_MAIL=$smtpEmail");
+        echo "<p style='color: #dc2626;'>Error: SMTP credentials are not configured.</p>";
+        exit;
+    }
+
+    // Calculate totals (MUST match the original POST calculation logic)
+    $subtotal = 0;
+    $totalDiscountAmount = 0;
+    $netTotal = 0;
+    $totalGst = 0;
+    $packingcharge = 0;
+    $packingpercent = 3;
+    $rowsHtml = "";
+
+    foreach ($itemsBought as $index => $item) {
+        // Use 'price' for grossPrice and 'qty' for quantity from the order_items table
+        $grossPrice = $item['price'];
+        $itemDiscount = $item['discount']; // This is the percentage
+        $itemQuantity = $item['qty'];
+
+        // Calculations mimicking the original POST logic:
+        $netPrice = $grossPrice; // Original code used $grossPrice / (1 + $gstRate / 100), but then commented it out
+        
+        $discountAmount = $grossPrice * ($itemDiscount / 100);
+        $discountedNetPrice = $grossPrice - $discountAmount; // This is the discounted price
+        
+        $simpleDiscountedPrice = $discountedNetPrice; // Naming is confusing, use the discounted price
+        
+        $amount = $discountedNetPrice * $itemQuantity; // Total amount for this item
+
+        // Accumulate totals based on item calculations
+        $subtotal += $grossPrice * $itemQuantity;
+        $totalDiscountAmount += $discountAmount * $itemQuantity;
+        $netTotal += $amount; // This is the sum of discounted amounts for all items
+        
+        // $totalGst += ($discountedNetPrice * ($gstRate / 100)) * $itemQuantity; // This line was in original code but is unused in grand total
+
+        $rowsHtml .= "<tr><td>" . ($index + 1) . "</td><td class='left'>" . htmlspecialchars($item['product_name'], ENT_QUOTES, 'UTF-8') . "</td><td>" . number_format($grossPrice, 2) . "</td><td>" . number_format($discountAmount, 2) . " (" . number_format($itemDiscount, 2) . "%)</td><td>" . number_format($simpleDiscountedPrice, 2) . "</td><td>" . $itemQuantity . "</td><td>" . number_format($amount, 2) . "</td></tr>";
+    }
+    
+    $packingcharge = ($netTotal * $packingpercent) / 100;
+    $overallTotal = $netTotal + $packingcharge; // + $totalGst;
+
+    // --- END: CONVERTED FROM POST TO GET/DB FETCH ---
+
+    // The rest of the file is the PDF generation and email logic, which remains unchanged
+    
+
 
         // Generate HTML for PDF
         $html = "
@@ -261,7 +213,7 @@ try {
                     <p class='bold'>Total Items: " . count($itemsBought) . "</p>
                 </div>
                 <div style='text-align: center; margin: 20px;'>
-                    <a href='/bills/estimate_$enquiryNumber.pdf' class='btn-success' download>Download PDF</a>
+                 <a href='/Ecommerce/bills/estimate_$enquiryNumber.pdf' class='btn-success' download>Download PDF</a>
                 </div>
             </div>
         </body>
@@ -341,10 +293,7 @@ try {
 
         // Close database connection
         $conn = null;
-    } else {
-        echo "<p style='color: #dc2626;'>Error: Invalid request.</p>";
-        exit;
-    }
+   
 } catch (PDOException $e) {
     error_log("Error: " . $e->getMessage());
     echo "<p style='color: #dc2626;'>Error: " . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') . "</p>";

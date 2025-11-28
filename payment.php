@@ -1,5 +1,8 @@
 <?php
-require_once 'vendor/autoload.php';
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+require 'vendor/autoload.php';
 require_once __DIR__ . "/includes/env.php";
 
 
@@ -10,7 +13,6 @@ $username = $_ENV['DB_USER'] ?? 'root';
 $password = $_ENV['DB_PASS'] ?? '';
 session_start();
 use Razorpay\Api\Api;
-
 $orderId = $_GET['order_id'] ?? null;
 
 if (!$orderId || !isset($_SESSION['order_id']) || $orderId != $_SESSION['order_id']) {
