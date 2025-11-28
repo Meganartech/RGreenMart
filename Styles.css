@@ -4,6 +4,7 @@
   box-sizing: border-box;
 }
 :root {
+  --gradient: linear-gradient(to right, #064e3b, #84cc16);
   --secondary:#84cc16;
   --link:#639b10;
   --primaryclr:#064e3b;
@@ -53,7 +54,7 @@ body {
   font-family: Arial, sans-serif;
   color: #333;
   line-height: 1.6;
-  background: linear-gradient(180deg,var(--green-50),white 40%);
+  background: linear-gradient(180deg,var(--green-50),white 20%);
 }
 .secclr{
   color: var(--secondary) !important;
@@ -117,7 +118,9 @@ h6 {
 .text-center{
     text-align:center !important;   
 }  
-
+.form-control{
+  width: 100%;
+}
  header {
             position: sticky;
             top: 0;
@@ -433,7 +436,7 @@ h6 {
         }
 
         .continue-buttons {
-            background: linear-gradient(to right, #dc2626, #f97316);
+            background: var(--gradient);
             color: #ffffff;
             border-radius: 9999px;
             width: 20%;
@@ -1044,7 +1047,7 @@ white-space: nowrap;
             justify-content: center;
         }
         .spanbg {
-            background: linear-gradient(to right, #dc2626, #f97316);
+            background: var(--gradient);
             color: #ffffff;
             padding: 0.25rem 0.5rem;
             border-radius: 0.25rem;
@@ -1091,7 +1094,7 @@ white-space: nowrap;
             border-collapse: collapse;
         }
         thead tr {
-            background: linear-gradient(to right, #dc2626, #f97316);
+            background: var(--gradient);
             color: #ffffff;
         }
         th {
@@ -1141,7 +1144,7 @@ white-space: nowrap;
             position: absolute;
             top: -0.25rem;
             right: -0.25rem;
-            background: linear-gradient(to right, #dc2626, #f97316);
+            background: var(--gradient);
             color: #ffffff;
             font-size: 0.75rem;
             font-weight: bold;
@@ -1211,7 +1214,7 @@ white-space: nowrap;
             color: #f97316;
         }
         .action-button {
-            background: linear-gradient(to right, #dc2626, #f97316);
+            background: var(--gradient);
             color: #ffffff;
             padding: 0.75rem 1.5rem;
             border-radius: 9999px;
@@ -1260,7 +1263,7 @@ white-space: nowrap;
             background-color: #e6b800;
         }
         .category-button.active {
-            background: linear-gradient(to right, #dc2626, #f97316);
+            background: var(--gradient);
             color: #ffffff;
         }
         .brand-button {
@@ -1280,12 +1283,12 @@ white-space: nowrap;
             border: none;
         }
         .brand-button:hover {
-            background: linear-gradient(to right, #dc2626, #f97316);
+            background: var(--gradient);
             color: #ffffff;
             transform: scale(1.05);
         }
         .brand-button.active {
-            background: linear-gradient(to right, #dc2626, #f97316);
+            background: var(--gradient);
             color: #ffffff;
         }
         .brand-button img {
@@ -1322,7 +1325,7 @@ white-space: nowrap;
             color: #dc2626;
         }
         .continue-button {
-            background: linear-gradient(to right, #dc2626, #f97316);
+            background: var(--gradient);
             color: #ffffff;
             padding: 0.75rem 1.5rem;
             border-radius: 9999px;

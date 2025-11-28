@@ -29,9 +29,10 @@ $email = $contact['email'] ?? '';
             <meta name="keywords" content="Deepavali crackers sale 2025, Buy crackers online Deepavali 2025, Diwali crackers offer 2025, Deepavali discount crackers online, 
 Diwali crackers shop near me, Deepavali crackers combo offer 2025, Wholesale Diwali crackers online, Sivakasi crackers online shopping, , 
 Diwali crackers home delivery 2025, Best price Diwali crackers online, Cheapest Deepavali crackers online 2025, Eco-friendly Diwali crackers online 2025, Diwali crackers gift box sale 2025, Online cracker booking for Deepavali 2025, Buy Sivakasi crackers for Deepavali 2025, Buy crackers online Chennai Deepavali 2025, Diwali crackers sale Coimbatore 2025, Deepavali crackers shop Madurai 2025, 
-Tirunelveli Deepavali crackers online, Salem Diwali crackers discount 2025, Deepavali crackers gift pack 2025, Green crackers for Diwali 2025, Cheap Diwali crackers online 2025, Buy Diwali crackers online Tamil Nadu 2025, Standard Fireworks Diwali crackers 2025, Ayyan Fireworks branded crackers online, Sony Fireworks crackers sale 2025, Sri Kaliswari branded crackers Deepavali 2025, Rgreen Enterprise crackers sale 2025, Trichy branded crackers discount Diwali 2025, Crackers online sale 2025, Buy crackers online Diwali 2025, Deepavali crackers sale 2025, Diwali crackers online shopping, Crackers combo offers 2025, Wholesale crackers online 2025, Discount crackers for Deepavali, Crackers price list online 2025, Online booking of Diwali crackers, Cheapest crackers sale online, Buy crackers combo packs online Deepavali 2025, Eco-friendly crackers online sale 2025, Sivakasi crackers home delivery 2025, Diwali crackers family pack offers, Order crackers online with free delivery, Crackers online sale Chennai 2025, Sivakasi crackers online shopping 2025, Deepavali crackers Coimbatore online, Diwali crackers Madurai offers 2025, Crackers shop near me Diwali 2025, Crackers combo pack offers Deepavali 2025, 
+Tirunelveli Deepavali crackers online, Salem Diwali crackers discount 2025, Deepavali crackers gift pack 2025, Green crackers for Diwali 2025, Cheap Diwali crackers online 2025, Buy Diwali crackers online Tamil Nadu 2025, Standard Fireworks Diwali crackers 2025, Ayyan Fireworks branded crackers online, Sony Fireworks crackers sale 2025, Sri Kaliswari branded crackers Deepavali 2025, RGreenMart crackers sale 2025, Trichy branded crackers discount Diwali 2025, Crackers online sale 2025, Buy crackers online Diwali 2025, Deepavali crackers sale 2025, Diwali crackers online shopping, Crackers combo offers 2025, Wholesale crackers online 2025, Discount crackers for Deepavali, Crackers price list online 2025, Online booking of Diwali crackers, Cheapest crackers sale online, Buy crackers combo packs online Deepavali 2025, Eco-friendly crackers online sale 2025, Sivakasi crackers home delivery 2025, Diwali crackers family pack offers, Order crackers online with free delivery, Crackers online sale Chennai 2025, Sivakasi crackers online shopping 2025, Deepavali crackers Coimbatore online, Diwali crackers Madurai offers 2025, Crackers shop near me Diwali 2025, Crackers combo pack offers Deepavali 2025, 
 , Crackers online with discount, Festival crackers sale 2025, Diwali crackers mega offer online, Crackers shop online best price, Eco-friendly Crackers Online 2025, Sivakasi Crackers Home Delivery, Diwali cracker sale 2025, Diwali crackers online shopping 2025, Buy crackers online Diwali 2025, Crackers online sale for Diwali 2025, Online Diwali crackers offers 2025, Diwali firecrackers online sale 2025, Diwali crackers discount 2025, Cheap Diwali crackers online 2025, Diwali crackers booking online 2025, Diwali crackers shop online, Diwali crackers combo pack sale 2025, Buy Diwali crackers online with home delivery, Eco-friendly Diwali crackers online sale 2025, 
 Diwali crackers price list 2025, Diwali crackers family pack offers, Diwali crackers mega sale 2025, Buy Diwali crackers at wholesale price, Diwali crackers with discount offers 2025, Diwali crackers free delivery 2025, Diwali crackers best combo deals, Eco-Friendly Diwali Crackers Sale 2025, Sivakasi Crackers Online Sale 2025, Sivakasi Crackers sale, Crackers online, Crackers online sale, Sony, sonny, Ayyan Fireworks, Standard Fireworks, Standard Fireworks, Sonny, Ayyan, Ramesh sparklers, Standard Fireworks, Ayyan Fireworks, Sony Fireworks, Anil Fireworks, Sri Kaliswari Fireworks, Ramesh Fireworks, Vijay Fireworks, Cock Brand (National Fireworks), Chota Chetan Fireworks, Ajanta Fireworks">
+ <script src="../cart.js"></script>
 </head>
 <!-- ======= Contact Section ======= -->
    <?php include './header.php'; ?>
@@ -47,24 +48,24 @@ Diwali crackers price list 2025, Diwali crackers family pack offers, Diwali crac
                <iframe style="border: 0; width: 100%; height: 270px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);" src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3930.574682685331!2d78.07374607479207!3d9.886004190213642!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3b00cfe9e0d71771%3A0xb00d568a6b1efdd6!2sTechnology%20Business%20Incubator%20(TCE-TBI)!5e0!3m2!1sen!2sin!4v1764237040608!5m2!1sen!2sin" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
             </div>
 
-            <div class="col-lg-4">
+            <div class="col-lg-4 mt-4">
                 <div class="info-container" style="background: #fff; border-radius: 10px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); padding: 20px;">
                     <div class="info-item mb-4">
-                        <i class="fa-solid fa-location-dot primaryclr" style="font-size: 24px;"></i>
+                        <i class="fa-solid fa-location-dot secclr" style="font-size: 24px;"></i>
                         <div>
                             <h4 style="font-size: 18px; font-weight: bold; color: #1f2937;">Location:</h4>
                             <p style="color: #4b5563;"><?php echo nl2br(htmlspecialchars($address, ENT_QUOTES, 'UTF-8')); ?></p>
                         </div>
                     </div>
                     <div class="info-item mb-4">
-                        <i class="fa-regular fa-envelope primaryclr" style="font-size: 24px;"></i>
+                        <i class="fa-regular fa-envelope secclr" style="font-size: 24px;"></i>
                         <div>
                             <h4 style="font-size: 18px; font-weight: bold; color: #1f2937;">Email:</h4>
                             <p style="color: #4b5563;"><?php echo htmlspecialchars($email, ENT_QUOTES, 'UTF-8'); ?></p>
                         </div>
                     </div>
                     <div class="info-item">
-                        <i class="fa-solid fa-phone primaryclr" style=" font-size: 24px;"></i>
+                        <i class="fa-solid fa-phone secclr" style=" font-size: 24px;"></i>
                         <div>
                             <h4 style="font-size: 18px; font-weight: bold; color: #1f2937;">Call:</h4>
                             <p style="color: #4b5563;">
@@ -79,7 +80,7 @@ Diwali crackers price list 2025, Diwali crackers family pack offers, Diwali crac
                 </div>
             </div>
 
-            <div class="col-lg-8 mt-4 mt-lg-0">
+            <div class="col-lg-8  mt-lg-0">
                 <div class="details-container" style="background: #fff; border-radius: 10px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); padding: 30px;">
                     <h2 style="text-center; font-size: 24px; font-weight: bold; color: #1f2937; margin-bottom: 20px;">Send Us a Message</h2>
                     <form action="forms/contact.php" method="post" role="form" class="php-email-form">
@@ -170,14 +171,14 @@ $conn = null;
 }
 
 .php-email-form .form-control {
-    border: 2px solid #fee2e2;
+    border: 1px solid #84cc16;
     border-radius: 8px;
     font-size: 16px;
     padding: 10px;
 }
+.form-control:focus {
 
-.php-email-form .form-control:focus {
-    border-color: #dc2626;
+     outline: 2px solid #059669;
     box-shadow: none;
 }
 

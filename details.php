@@ -10,7 +10,7 @@ session_start();
 
 use Razorpay\Api\Api;
 
-$minimumOrder = 200; 
+$minimumOrder = 1000;
 $gstRate = isset($settings['gst_rate']) ? floatval($settings['gst_rate']) : 18;
 
 // DB Config
@@ -132,9 +132,9 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RGreen Enterprise Checkout</title>
+    <title>RGreenMart Checkout</title>
     <link rel="icon" type="image/png" href="./images/LOGO.jpg">
-    <meta name="keywords" content="Deepavali crackers sale 2025, Buy crackers online Deepavali 2025, Diwali crackers offer 2025, Deepavali discount crackers online, Diwali crackers shop near me, Deepavali crackers combo offer 2025, Wholesale Diwali crackers online, Sivakasi crackers online shopping, Diwali crackers home delivery 2025, Best price Diwali crackers online, Cheapest Deepavali crackers online 2025, Eco-friendly Diwali crackers online 2025, Diwali crackers gift box sale 2025, Online cracker booking for Deepavali 2025, Buy Sivakasi crackers for Deepavali 2025, Buy crackers online Chennai Deepavali 2025, Diwali crackers sale Coimbatore 2025, Deepavali crackers shop Madurai 2025, Tirunelveli Deepavali crackers online, Salem Diwali crackers discount 2025, Deepavali crackers gift pack 2025, Green crackers for Diwali 2025, Cheap Diwali crackers online 2025, Buy Diwali crackers online Tamil Nadu 2025, Standard Fireworks Diwali crackers 2025, Ayyan Fireworks branded crackers online, Sony Fireworks crackers sale 2025, Sri Kaliswari branded crackers Deepavali 2025, Rgreen Enterprise crackers sale 2025, Trichy branded crackers discount Diwali 2025">
+    <meta name="keywords" content="Deepavali crackers sale 2025, Buy crackers online Deepavali 2025, Diwali crackers offer 2025, Deepavali discount crackers online, Diwali crackers shop near me, Deepavali crackers combo offer 2025, Wholesale Diwali crackers online, Sivakasi crackers online shopping, Diwali crackers home delivery 2025, Best price Diwali crackers online, Cheapest Deepavali crackers online 2025, Eco-friendly Diwali crackers online 2025, Diwali crackers gift box sale 2025, Online cracker booking for Deepavali 2025, Buy Sivakasi crackers for Deepavali 2025, Buy crackers online Chennai Deepavali 2025, Diwali crackers sale Coimbatore 2025, Deepavali crackers shop Madurai 2025, Tirunelveli Deepavali crackers online, Salem Diwali crackers discount 2025, Deepavali crackers gift pack 2025, Green crackers for Diwali 2025, Cheap Diwali crackers online 2025, Buy Diwali crackers online Tamil Nadu 2025, Standard Fireworks Diwali crackers 2025, Ayyan Fireworks branded crackers online, Sony Fireworks crackers sale 2025, Sri Kaliswari branded crackers Deepavali 2025, RGreenMart crackers sale 2025, Trichy branded crackers discount Diwali 2025">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <link rel="stylesheet" href="./Styles.css">
     
@@ -199,21 +199,12 @@ try {
                 <input type="hidden" name="coupon_discount" id="couponDiscountHidden" value="0">
                 <input type="hidden" name="coupon_discount_percent" id="couponDiscountPercentHidden" value="0">
                 <input type="hidden" name="coupon_code" id="couponCodeHidden" value="">
-                <button type="submit" class="continue-button" id="continueButton">Continue Estimate</button>
+                <button type="submit" class="continue-button" id="continueButton">Order Now</button>
             </form>
         <?php else: ?>
-            <div class="payment-summary" style="text-align: center; margin-top: 50px;">
-                <h2>Order Summary</h2>
-                <p>Order ID: **<?= htmlspecialchars($orderId) ?>**</p>
-                <p>Customer: **<?= htmlspecialchars($order['name']) ?>**</p>
-                <h3 style="color: green;">Amount Due: **₹<?= number_format($order['overall_total'], 2) ?>**</h3>
-                <p style="margin-top: 30px;">Click the button below to proceed to payment.</p>
-                
-                <button id="pay" style="padding: 15px 30px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                    Pay Now (₹<?= number_format($order['overall_total'], 2) ?>)
-                </button>
-            </div>
-            
+           <div>Redirecting you to Payment page.Please Wait! </div>
+
+
             <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
             <script>
             var options = {
@@ -237,10 +228,9 @@ try {
             };
             var rzp1 = new Razorpay(options);
 
-            document.getElementById('pay').onclick = function(e){
                 rzp1.open();
                 e.preventDefault();
-            }
+           
             </script>
         <?php endif; ?>
 

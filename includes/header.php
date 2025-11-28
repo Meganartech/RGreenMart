@@ -33,7 +33,7 @@ if (!defined('HEADER_INCLUDED')) {
                 <nav class="desktop-nav" aria-label="Main navigation">
                     <a class="header-nav" href="/Ecommerce/index.php">Home</a>
                     <a class="header-nav" href="/Ecommerce/includes/About.php">About Us</a>
-                    <a class="header-nav" href="/Ecommerce/includes/HealthyTips.php">Safety</a>
+                    <a class="header-nav" href="/Ecommerce/includes/HealthyTips.php">Healthy Tips</a>
                     <a class="header-nav" href="/Ecommerce/includes/ContactUs.php">Contact</a>
                     <!-- <div class="contact-icons">
                         <a href="https://www.instagram.com/mass__mari/reel/DPGeGiDgcos/" class="contact-icon instagram-icon" aria-label="Instagram" target="_blank">

@@ -45,7 +45,7 @@ var options = {
     "key": "<?= $_ENV['RAZORPAY_KEY_ID'] ?>",
     "amount": "<?= $order['overall_total'] * 100 ?>",
     "currency": "INR",
-    "name": "Rgreen Enterprise",
+    "name": "RgreenMart",
     "description": "Order Payment",
     "order_id": "<?= $razorpayOrderId ?>", // ← REAL Order ID from PHP
     "handler": function (response){

@@ -43,7 +43,7 @@ $displayImgPath = htmlspecialchars($displayImgPath, ENT_QUOTES, 'UTF-8');
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars($product['name']); ?> - RGreen Enterprise</title>
+    <title><?= htmlspecialchars($product['name']); ?> - RGreenMart</title>
     <link rel="icon" type="image/png" href="./images/LOGO.jpg">
     <link rel="stylesheet" href="./Styles.css">
     <script src="cart.js"></script>

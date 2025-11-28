@@ -19,12 +19,13 @@ $email = $contact['email'] ?? 'info@rgreencrackers.com';
         <meta name="keywords" content="Deepavali crackers sale 2025, Buy crackers online Deepavali 2025, Diwali crackers offer 2025, Deepavali discount crackers online, 
 Diwali crackers shop near me, Deepavali crackers combo offer 2025, Wholesale Diwali crackers online, Sivakasi crackers online shopping, , 
 Diwali crackers home delivery 2025, Best price Diwali crackers online, Cheapest Deepavali crackers online 2025, Eco-friendly Diwali crackers online 2025, Diwali crackers gift box sale 2025, Online cracker booking for Deepavali 2025, Buy Sivakasi crackers for Deepavali 2025, Buy crackers online Chennai Deepavali 2025, Diwali crackers sale Coimbatore 2025, Deepavali crackers shop Madurai 2025, 
-Tirunelveli Deepavali crackers online, Salem Diwali crackers discount 2025, Deepavali crackers gift pack 2025, Green crackers for Diwali 2025, Cheap Diwali crackers online 2025, Buy Diwali crackers online Tamil Nadu 2025, Standard Fireworks Diwali crackers 2025, Ayyan Fireworks branded crackers online, Sony Fireworks crackers sale 2025, Sri Kaliswari branded crackers Deepavali 2025, Rgreen Enterprise crackers sale 2025, Trichy branded crackers discount Diwali 2025, Crackers online sale 2025, Buy crackers online Diwali 2025, Deepavali crackers sale 2025, Diwali crackers online shopping, Crackers combo offers 2025, Wholesale crackers online 2025, Discount crackers for Deepavali, Crackers price list online 2025, Online booking of Diwali crackers, Cheapest crackers sale online, Buy crackers combo packs online Deepavali 2025, Eco-friendly crackers online sale 2025, Sivakasi crackers home delivery 2025, Diwali crackers family pack offers, Order crackers online with free delivery, Crackers online sale Chennai 2025, Sivakasi crackers online shopping 2025, Deepavali crackers Coimbatore online, Diwali crackers Madurai offers 2025, Crackers shop near me Diwali 2025, Crackers combo pack offers Deepavali 2025, 
+Tirunelveli Deepavali crackers online, Salem Diwali crackers discount 2025, Deepavali crackers gift pack 2025, Green crackers for Diwali 2025, Cheap Diwali crackers online 2025, Buy Diwali crackers online Tamil Nadu 2025, Standard Fireworks Diwali crackers 2025, Ayyan Fireworks branded crackers online, Sony Fireworks crackers sale 2025, Sri Kaliswari branded crackers Deepavali 2025, RGreenMart crackers sale 2025, Trichy branded crackers discount Diwali 2025, Crackers online sale 2025, Buy crackers online Diwali 2025, Deepavali crackers sale 2025, Diwali crackers online shopping, Crackers combo offers 2025, Wholesale crackers online 2025, Discount crackers for Deepavali, Crackers price list online 2025, Online booking of Diwali crackers, Cheapest crackers sale online, Buy crackers combo packs online Deepavali 2025, Eco-friendly crackers online sale 2025, Sivakasi crackers home delivery 2025, Diwali crackers family pack offers, Order crackers online with free delivery, Crackers online sale Chennai 2025, Sivakasi crackers online shopping 2025, Deepavali crackers Coimbatore online, Diwali crackers Madurai offers 2025, Crackers shop near me Diwali 2025, Crackers combo pack offers Deepavali 2025, 
 , Crackers online with discount, Festival crackers sale 2025, Diwali crackers mega offer online, Crackers shop online best price, Eco-friendly Crackers Online 2025, Sivakasi Crackers Home Delivery, Diwali cracker sale 2025, Diwali crackers online shopping 2025, Buy crackers online Diwali 2025, Crackers online sale for Diwali 2025, Online Diwali crackers offers 2025, Diwali firecrackers online sale 2025, Diwali crackers discount 2025, Cheap Diwali crackers online 2025, Diwali crackers booking online 2025, Diwali crackers shop online, Diwali crackers combo pack sale 2025, Buy Diwali crackers online with home delivery, Eco-friendly Diwali crackers online sale 2025, 
 Diwali crackers price list 2025, Diwali crackers family pack offers, Diwali crackers mega sale 2025, Buy Diwali crackers at wholesale price, Diwali crackers with discount offers 2025, Diwali crackers free delivery 2025, Diwali crackers best combo deals, Eco-Friendly Diwali Crackers Sale 2025, Sivakasi Crackers Online Sale 2025, Sivakasi Crackers sale, Crackers online, Crackers online sale, Sony, sonny, Ayyan Fireworks, Standard Fireworks, Standard Fireworks, Sonny, Ayyan, Ramesh sparklers, Standard Fireworks, Ayyan Fireworks, Sony Fireworks, Anil Fireworks, Sri Kaliswari Fireworks, Ramesh Fireworks, Vijay Fireworks, Cock Brand (National Fireworks), Chota Chetan Fireworks, Ajanta Fireworks">
     <!-- Vendor CSS Files -->
     <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
     <link href="assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+    <script src="../cart.js"></script>
     <link rel="icon" type="image/png" href="../images/LOGO.jpg">
     <style>
         body {
@@ -390,9 +391,9 @@ Diwali crackers price list 2025, Diwali crackers family pack offers, Diwali crac
                     <div>
                         <h1 class="branded ">Welcome to RGreenMart </h1>
                         <p class="text-muted secclr">Dried Fruits & Nuts – Fresh. Pure. Premium</p>
-                        <p>Founded in 1975, RGreen Enterprise has been a trusted name in the trading business for nearly five decades. What began as a modest venture has now grown into a well-established trading house that has successfully served customers across different sectors. Today, the company proudly stands as a third-generation family-run enterprise, combining traditional values with modern business practices.</p>
+                        <p>Founded in 1975, RGreenMart has been a trusted name in the trading business for nearly five decades. What began as a modest venture has now grown into a well-established trading house that has successfully served customers across different sectors. Today, the company proudly stands as a third-generation family-run enterprise, combining traditional values with modern business practices.</p>
                         <p>
-                            Over the years, RGreen Enterprise has built its reputation on trust, quality, and reliability. With a diverse portfolio that includes trading, seasonal products, and other wholesale businesses, the company has catered to customers with consistency and excellence.
+                            Over the years, RGreenMart has built its reputation on trust, quality, and reliability. With a diverse portfolio that includes trading, seasonal products, and other wholesale businesses, the company has catered to customers with consistency and excellence.
                         </p>
                     </div>
 
@@ -497,12 +498,7 @@ Diwali crackers price list 2025, Diwali crackers family pack offers, Diwali crac
             </div>
         </div>
     </section>
-  <a href="#main-body" 
-   id="scrollToBodyBtn" 
-   class="info-float" 
-   title="Scroll to Main Body">
-   <img src="../images/booknow.webp">
-</a>
+ 
     <?php include './footer.php'; ?>
 </body>
 </html>

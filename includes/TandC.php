@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 
-
+ <script src="../cart.js"></script>
 
     <?php include './header.php'; ?>
 <body>

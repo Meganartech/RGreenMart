@@ -63,9 +63,9 @@ try {
         // Fetch admin details from DB
         $adminStmt = $conn->query("SELECT name, phone, email, shopaddress FROM admin_details LIMIT 1");
         $admin = $adminStmt->fetch(PDO::FETCH_ASSOC);
-        $adminName = $admin['name'] ?? 'RGreen Enterprise';
-        $adminMobile = $admin['phone'] ?? '6358986751';
-        $adminEmail = $admin['email'] ?? 'arunbabuks03@gmail.com';
+        $adminName = $admin['name'] ?? 'RGreenMart';
+        $adminMobile = $admin['phone'] ?? '99524 24474';
+        $adminEmail = $admin['email'] ?? 'sales@rgreenmart.com';
         $adminAddress = $admin['shopaddress'] ?? 'Chandragandhi Nagar, Madurai, Tamil Nadu';
 
         // Validate admin email

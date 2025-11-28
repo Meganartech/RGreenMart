@@ -88,7 +88,7 @@ try {
     // Clear session data
     unset($_SESSION['order_id']);
 
-    header("Location: pdf_generation.php?order_id=$orderId");
+    header("Location: pdf_generation.php?order_id=$orderId&cart_cleared=true");
     exit;
 
 } catch(\Razorpay\Api\Errors\SignatureVerificationError $e){

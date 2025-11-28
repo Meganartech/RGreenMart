@@ -10,8 +10,8 @@ $stmt->execute();
 $shop = $stmt->fetch(PDO::FETCH_ASSOC);
 
 $shopAddress = $shop['shopaddress'] ?? 'Chandragandhi Nagar, Madurai, Tamil Nadu';
-$shopPhone = $shop['phone'] ?? '6358986751';
-$shopEmail = $shop['email'] ?? 'arunbabuks03@gmail.com';
+$shopPhone = $shop['phone'] ?? '99524 24474';
+$shopEmail = $shop['email'] ?? 'sales@rgreenmart.com';
 
 // Determine which content page to show
 $page = $_GET['page'] ?? 'productshome';

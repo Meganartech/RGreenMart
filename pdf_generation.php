@@ -64,9 +64,9 @@ try {
     // ---------------- Fetch Admin ------------------
     $adminStmt = $conn->query("SELECT name, phone, email, shopaddress FROM admin_details LIMIT 1");
     $admin = $adminStmt->fetch(PDO::FETCH_ASSOC);
-    $adminName = $admin['name'] ?? 'RGreen Enterprise';
-    $adminMobile = $admin['phone'] ?? '6358986751';
-    $adminEmail = $admin['email'] ?? 'arunbabuks03@gmail.com';
+    $adminName = $admin['name'] ?? 'RGreenMart';
+    $adminMobile = $admin['phone'] ?? '99524 24474';
+    $adminEmail = $admin['email'] ?? 'sales@rgreenmart.com';
     $adminAddress = $admin['shopaddress'] ?? 'Chandragandhi Nagar, Madurai, Tamil Nadu';
 
     // Fetch GST rate from the settings table
@@ -168,7 +168,7 @@ try {
                 <div class='invoice-box'>
                     <table class='header'>
                         <tr>
-                            <td class='left'>Enquiry No: $enquiryNumber</td>
+                            <td class='left'>Invoice No: $enquiryNumber</td>
                             <td class='right'>Date: $orderedDateTime</td>
                         </tr>
                         <tr>
@@ -300,3 +300,23 @@ try {
     exit;
 }
 ?>
+<script>
+    // 1. ADD THE MISSING FUNCTION DEFINITION
+    function getUrlParameter(name) {
+        name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+        var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+        var results = regex.exec(location.search);
+        // Returns the value of the parameter, or an empty string if not found
+        return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+    }
+
+    // 2. EXECUTE THE CART CLEARING LOGIC
+    // Check for the success flag
+    var shouldClearCart = getUrlParameter('cart_cleared'); 
+
+    // If the flag is explicitly 'true' AND the 'cart' item exists, remove it.
+    if (shouldClearCart === 'true' && localStorage.getItem("cart")) {
+        localStorage.removeItem("cart"); 
+        console.log("Shopping cart cleared due to successful payment.");
+    }
+</script>
