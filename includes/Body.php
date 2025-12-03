@@ -1,8 +1,8 @@
 <?php
 // Load environment and header layout
-require_once './includes/env.php';
-require_once './includes/header.php';
-require_once './includes/db.php';
+require_once 'includes/env.php';
+require_once 'includes/header.php';
+require_once 'includes/db.php';
 
 // Fetch shop details
 $stmt = $conn->prepare("SELECT shopaddress, phone, email FROM admin_details LIMIT 1");

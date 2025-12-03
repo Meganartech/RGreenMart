@@ -741,6 +741,7 @@ img.loaded {
   display: flex;
   justify-content: center;
   align-items: center;
+  position: relative;
 }
 .product-image img {
   width: 100%;
@@ -759,8 +760,8 @@ img.loaded {
   font-size: 12px;
   border-radius: 50px;
   position: absolute;
-  margin-top: -10px;
-  margin-left: -10px;
+  top: 10px;
+  left: 10px;
 }
 
 .product-title {

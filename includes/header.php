@@ -54,7 +54,7 @@ if (!defined('HEADER_INCLUDED')) {
                     </div> -->
                   
                 </nav>
-                 <a href="?page=viewcart" class="hideanchor mr-5 cart-link">
+                 <a href="index.php?page=viewcart" class="hideanchor mr-5 cart-link">
                                         <div class=" mx-1" title="continue to pay">
                                     <div class="cart-icon-wrapper">
     <i class="fa-solid fa-cart-shopping headicon" style="font-size:22px;"></i>

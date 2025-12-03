@@ -7,7 +7,7 @@ error_reporting(E_ALL);
 require_once 'vendor/autoload.php';
 
 // --- 1. Load Environment Variables ---
-require_once __DIR__ . "./includes/env.php"; 
+require_once __DIR__ . "/includes/env.php"; 
 require_once __DIR__ . "/admin/config.php"; 
 
 use Razorpay\Api\Api;

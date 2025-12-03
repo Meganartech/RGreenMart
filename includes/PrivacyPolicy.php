@@ -6,6 +6,7 @@
     <title>Privacy Policy-RGreenMart</title>
       <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="../Styles.css">
+       <script src="../cart.js"></script>
 </head>
 <body >
 

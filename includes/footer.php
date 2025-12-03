@@ -195,7 +195,7 @@ if (!defined('FOOTER_INCLUDED')) {
                         </div>
                         <div>
                             <a href="/index.php" id="scrollToBodyBtn" class="info-float" title="Scroll to Main Body">
-                                <img src="./images/booknow.webp" alt="">
+                                <img src="/images/booknow.webp" alt="">
                             </a>
                             <a href="https://wa.me/<?php echo preg_replace('/\D/', '', $phone); ?>" target="_blank"
                                 class="block">

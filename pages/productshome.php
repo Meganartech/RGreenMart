@@ -138,7 +138,7 @@ $displayImgPath = htmlspecialchars($displayImgPath, ENT_QUOTES, 'UTF-8');
                 <div class="table-container">
                     <div class="product-grid">
                         <?php foreach ($processedItems as $item): ?>
-                     <a href="?page=product&id=<?= $item['id']; ?>" class="product-card">
+                     <a href="index.php?page=product&id=<?= $item['id']; ?>" class="product-card">
 <div  data-category="<?= $item['category_raw']; ?>" data-brand="<?= $item['brand']; ?>" data-idx="<?= $item['id']; ?>">
 
 

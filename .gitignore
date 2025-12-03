@@ -19,8 +19,16 @@
 .env.*.local
 .env.development
 
+*.mp4
+*.sql
+*.zip
+assets/vendor/
+assets/images/
 # Local configuration files that override committed config
 *.local.php
+
+admin/Uploads/
+
 
 # -----------------------------------------------------------------
 # 3. GENERATED OUTPUT FILES AND USER UPLOADS
