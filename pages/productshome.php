@@ -19,56 +19,100 @@ $shopPhone = $shop['phone'] ?? '99524 24474';
 $shopEmail = $shop['email'] ?? 'sales@rgreenmart.com';
 
 // Fetch data from items table
-$stmt = $conn->prepare("SELECT id,name, price, discount, pieces, items, category, brand, image FROM items");
+$stmt = $conn->prepare("SELECT * FROM items");
 $stmt->execute();
 $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Precompute values for each item
+// GST Rate (Set from your code)
+$gstRate = 18; // <-- Change if needed
+
 $processedItems = [];
 
 foreach ($items as $idx => $item) {
-    $grossPrice = round($item['price']); // integer
-    $netPrice = round($item['price'] / (1 + $gstRate / 100)); // integer
-    $gstAmount = $grossPrice - $netPrice; // integer by logic
-    $discountAmount = round($netPrice * ((float) $item['discount'] / 100)); // integer
-    $simpleDiscountedPrice = round($grossPrice * (1 - ((float) $item['discount'] / 100))); // integer
 
-    // Original image path
-    $originalImgPath = !empty($item['image']) && !empty($item['brand'])
-        ? './admin/Uploads/' . htmlspecialchars($item['brand'], ENT_QUOTES, 'UTF-8') . '/' . basename($item['image'])
-        : '';
+    // -------- PRICE CALCULATIONS -------- //
+    $grossPrice = round($item['price']);
+    $netPrice   = round($item['price'] / (1 + $gstRate / 100));
+    $gstAmount  = $grossPrice - $netPrice;
 
-    // Compressed image path
-    $compressedImgPath = !empty($item['image']) && !empty($item['brand'])
-        ? './admin/Uploads/compressed/' . htmlspecialchars($item['brand'], ENT_QUOTES, 'UTF-8') . '/' . basename($item['image'])
-        : '';
+    $discountRate = (float) $item['discount'];
+    $discountAmount = round($netPrice * ($discountRate / 100));
+    $simpleDiscountedPrice = round($grossPrice * (1 - ($discountRate / 100)));
 
-$defaultImage = './images/default.png';
+    // -------- IMAGE PATH HANDLING -------- //
 
-$displayImgPath = file_exists($compressedImgPath) ? $compressedImgPath :
-                  (file_exists($originalImgPath) ? $originalImgPath : $defaultImage);
+    $imageFile = trim($item['image']);   // Example: Uploads/abc.jpg
+    $compressedFile = trim($item['compressed_image']);
 
-$displayImgPath = htmlspecialchars($displayImgPath, ENT_QUOTES, 'UTF-8');
+    $defaultPublicImage = "/images/default.jpg";
+
+    // Physical file paths
+$serverOriginal   = $_SERVER["DOCUMENT_ROOT"] . "/admin/" . $imageFile;
+
+$serverCompressed = $_SERVER["DOCUMENT_ROOT"] . "/admin/" . $compressedFile;
+
+$publicOriginal   = "/admin/" . $imageFile;
+$publicCompressed = "/admin/" . $compressedFile;
 
 
+    // Select best available image
+    if (!empty($imageFile) && file_exists($serverOriginal)) {
+        $displayImgPath = $publicOriginal;
+    } elseif (!empty($compressedFile) && file_exists($serverCompressed)) {
+        $displayImgPath = $publicCompressed;
+    } else {
+        $displayImgPath = $defaultPublicImage;
+    }
+
+    // -------- BUILD CLEAN OUTPUT ARRAY -------- //
     $processedItems[$idx] = [
-        'id' => htmlspecialchars($item['id'], ENT_QUOTES, 'UTF-8'),
-        'name' => htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8'),
-        'category' => htmlspecialchars($item['category'], ENT_QUOTES, 'UTF-8'),
-        'category_raw' => $item['category'],
-        'brand' => htmlspecialchars($item['brand'], ENT_QUOTES, 'UTF-8'),
-        'pieces' => (int) $item['pieces'],
-        'items' => (int) $item['items'],
-        'grossPrice' => $grossPrice,
-        'netPrice' => $netPrice,
-        'gstAmount' => $gstAmount,
-        'discountAmount' => $discountAmount,
-        'simpleDiscountedPrice' => $simpleDiscountedPrice,
-       'originalImgPath' => file_exists($originalImgPath)
-    ? htmlspecialchars($originalImgPath, ENT_QUOTES, 'UTF-8')
-    : './images/default.png',
-        'displayImgPath' => $displayImgPath,
-        'discountRate' => round((float) $item['discount']), // as integer
+        // BASIC FIELDS
+        'id'          => htmlspecialchars($item['id'], ENT_QUOTES),
+        'name'        => htmlspecialchars($item['name'], ENT_QUOTES),
+        'category_id' => $item['category_id'],
+        'brand_id'    => $item['brand_id'],
+
+        // PRICING
+        'price'                => $item['price'],
+        'old_price'            => $item['old_price'],
+        'discount'             => $discountRate,
+        'grossPrice'           => $grossPrice,
+        'netPrice'             => $netPrice,
+        'gstAmount'            => $gstAmount,
+        'discountAmount'       => $discountAmount,
+        'simpleDiscountedPrice'=> $simpleDiscountedPrice,
+
+        // STOCK
+        'stock'  => $item['stock'],
+        'status' => $item['status'],
+
+        // IMAGES
+        'image'           => $publicOriginal,
+        'compressedImage' => $publicCompressed,
+        'displayImgPath'  => htmlspecialchars($displayImgPath, ENT_QUOTES),
+
+        // PRODUCT DETAILS
+        'weight'        => $item['weight'],
+        'packaging_type'=> $item['packaging_type'],
+        'product_form'  => $item['product_form'],
+        'origin'        => $item['origin'],
+        'grade'         => $item['grade'],
+        'purity'        => $item['purity'],
+        'flavor'        => $item['flavor'],
+
+        // TEXT INFO
+        'description'           => $item['description'],
+        'nutrition'             => $item['nutrition'],
+        'shelf_life'            => $item['shelf_life'],
+        'storage_instructions'  => $item['storage_instructions'],
+        'expiry_info'           => $item['expiry_info'],
+
+        // META
+        'tags'        => $item['tags'],
+        'created_at'  => $item['created_at'],
+        'updated_at'  => $item['updated_at'],
+
+        'discountRate' => $discountRate,
     ];
 }
 
@@ -143,7 +187,6 @@ $displayImgPath = htmlspecialchars($displayImgPath, ENT_QUOTES, 'UTF-8');
             "discountRate" => $item["discountRate"],
             "gstRate" => $gstRate,
             "price" => $item["simpleDiscountedPrice"],
-            "brand" => $item["brand"],
             "image" => $item["displayImgPath"]
         ];
         ?>
@@ -151,8 +194,6 @@ $displayImgPath = htmlspecialchars($displayImgPath, ENT_QUOTES, 'UTF-8');
         <a href="index.php?page=product&id=<?= $item['id']; ?>" >
 
             <div class="card-container"
-                 data-category="<?= $item['category_raw']; ?>"
-                 data-brand="<?= $item['brand']; ?>"
                  data-idx="<?= $item['id']; ?>"
             >
 
@@ -168,8 +209,6 @@ $displayImgPath = htmlspecialchars($displayImgPath, ENT_QUOTES, 'UTF-8');
                 <!-- Title -->
                 <p class="product-title"><?= $item['name']; ?></p>
 
-                <!-- Brand -->
-                <p class="brand"><?= $item['brand']; ?></p>
 
                 <!-- Price -->
                 <p class="price">

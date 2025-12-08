@@ -18,7 +18,7 @@ $image = basename($product['image']);
 
 $originalImgPath = "./admin/Uploads/$brand/$image";
 $compressedImgPath = "./admin/Uploads/compressed/$brand/$image";
-$defaultImage = "./images/default.png";
+$defaultImage = "./images/default.jpg";
 
 $displayImgPath = file_exists($compressedImgPath)
     ? $compressedImgPath
