@@ -10,9 +10,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $email = trim($_POST["email"]);
     $password = trim($_POST["password"]);
 
-    if (empty($mobile) && empty($email)) {
-        $errors[] = "Enter either mobile or email.";
-    }
+       if (empty($mobile)) $errors[] = "mobile is required.";
+     if (empty($email)) $errors[] = "Email is required.";
     if (empty($name)) $errors[] = "Name is required.";
     if (empty($password)) $errors[] = "Password is required.";
 

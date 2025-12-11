@@ -112,7 +112,7 @@ function showToast(item) {
             <div class="mytoast-title">${item.name}</div>
             <div class="mytoast-price">₹${item.price}</div>
         </div>
-        <button onclick="location.href='?page=viewcart'">View Cart</button>
+        <button onclick="location.href='viewcart.php'">View Cart</button>
     `;
 
     toastContainer.appendChild(toast);

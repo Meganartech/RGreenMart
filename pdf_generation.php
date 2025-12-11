@@ -7,16 +7,9 @@ use Dompdf\Options;
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-// Database connection
-$host = $_ENV['DB_HOST'] ?? 'localhost';
-$dbname = $_ENV['DB_NAME'] ?? 'diwali_db';
-$username = $_ENV['DB_USER'] ?? 'root';
-$password = $_ENV['DB_PASS'] ?? '';
 
 try {
-    $conn = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
-    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
+ $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     // --- START: CONVERTED FROM POST TO GET/DB FETCH ---
     if (!isset($_GET['order_id'])) {
         die("<p style='color: #dc2626;'>Error: Order ID missing in URL.</p>");
@@ -24,8 +17,14 @@ try {
 
     $orderId = intval($_GET['order_id']);
 
-    // 1. Fetch Order Details (Customer Info and Totals)
-    $orderStmt = $conn->prepare("SELECT * FROM orders WHERE id = ?");
+    $orderStmt = $conn->prepare("
+        SELECT o.*, u.name AS customer_name, u.mobile AS customer_mobile, u.email AS customer_email,
+               a.address_line1, a.address_line2, a.city, a.state, a.pincode, a.landmark
+        FROM orders o
+        JOIN users u ON u.id = o.user_id
+        JOIN user_addresses a ON a.id = o.address_id
+        WHERE o.id = ?
+    ");
     $orderStmt->execute([$orderId]);
     $order = $orderStmt->fetch(PDO::FETCH_ASSOC);
 
@@ -33,33 +32,35 @@ try {
         die("<p style='color: #dc2626;'>Error: Order ID $orderId not found.</p>");
     }
 
-    // Map DB fields to variables
-    $customerName      = $order['name'];
-    $customerMobile    = $order['mobile'];
-    $customerEmail     = $order['email'];
-    $customerState     = $order['state'];
-    $customerCity      = $order['city'];
-    $customerAddress   = $order['address'];
-    $enquiryNumber     = $order['enquiry_no'];
-    $orderedDateTime   = $order['order_date'];
-    $packingchargeFromDB = $order['packing_charge'];
-    $netTotalFromDB    = $order['net_total'];
-    $overallTotalFromDB = $order['overall_total'];
+   // Map order/customer/address fields
+    $customerName    = $order['customer_name'];
+    $customerMobile  = $order['customer_mobile'];
+    $customerEmail   = $order['customer_email'];
+    $customerAddress = trim($order['address_line1'] . ' ' . $order['address_line2']);
+    $customerCity    = $order['city'];
+    $customerState   = $order['state'];
+    $customerPincode = $order['pincode'];
+    $customerLandmark= $order['landmark'];
+    $enquiryNumber   = $order['enquiry_no'];
+    $orderedDateTime = $order['order_date'];
+    $packingcharge   = $order['packing_charge'];
+    $netTotal        = $order['net_total'];
+    $overallTotal    = $order['overall_total'];
+    $subtotal        = $order['subtotal'];
 
     // 2. Fetch Order Items
-    $itemsStmt = $conn->prepare("SELECT * FROM order_items WHERE order_id = ?");
+  $itemsStmt = $conn->prepare("
+        SELECT oi.*, i.name AS product_name
+        FROM order_items oi
+        JOIN items i ON i.id = oi.item_id
+        WHERE oi.order_id = ?
+    ");
     $itemsStmt->execute([$orderId]);
     $itemsBought = $itemsStmt->fetchAll(PDO::FETCH_ASSOC);
     
     if (!$itemsBought) {
         die("<p style='color: #dc2626;'>Error: No items found for order ID $orderId.</p>");
     }
-
-    // Since the original POST logic involved *re-calculating* totals, we will
-    // stick to the original logic for generating the HTML to ensure consistency,
-    // but the $packingcharge and $overallTotal used for display will be based
-    // on the calculated values below, not the ones fetched from DB.
-    // We only need $enquiryNumber, $customerName, etc., for the invoice header.
 
     // ---------------- Fetch Admin ------------------
     $adminStmt = $conn->query("SELECT name, phone, email, shopaddress FROM admin_details LIMIT 1");
@@ -84,50 +85,40 @@ try {
         echo "<p style='color: #dc2626;'>Error: SMTP credentials are not configured.</p>";
         exit;
     }
+      // ---------------- CALCULATE ITEM TOTALS ----------------
+  $subtotal = 0;           // sum of original prices * quantity
+$netTotal = 0;            // sum of discounted price * quantity
+$totalDiscountAmount = 0; // sum of total discount
+$packingpercent = 3;      // packing charge percent
 
-    // Calculate totals (MUST match the original POST calculation logic)
-    $subtotal = 0;
-    $totalDiscountAmount = 0;
-    $netTotal = 0;
-    $totalGst = 0;
-    $packingcharge = 0;
-    $packingpercent = 3;
-    $rowsHtml = "";
+$rowsHtml = "";
 
-    foreach ($itemsBought as $index => $item) {
-        // Use 'price' for grossPrice and 'qty' for quantity from the order_items table
-        $grossPrice = $item['price'];
-        $itemDiscount = $item['discount']; // This is the percentage
-        $itemQuantity = $item['qty'];
+foreach ($itemsBought as $index => $item) {
+    $originalPrice = $item['original_price'];
+    $discountPerc  = $item['discount_percentage'];
+    $discountedPrice = $item['discounted_price'];
+    $quantity = $item['quantity'];
 
-        // Calculations mimicking the original POST logic:
-        $netPrice = $grossPrice; // Original code used $grossPrice / (1 + $gstRate / 100), but then commented it out
-        
-        $discountAmount = $grossPrice * ($itemDiscount / 100);
-        $discountedNetPrice = $grossPrice - $discountAmount; // This is the discounted price
-        
-        $simpleDiscountedPrice = $discountedNetPrice; // Naming is confusing, use the discounted price
-        
-        $amount = $discountedNetPrice * $itemQuantity; // Total amount for this item
+    $discountAmount = ($originalPrice - $discountedPrice); // per unit
+    $totalDiscountAmount += $discountAmount * $quantity;
 
-        // Accumulate totals based on item calculations
-        $subtotal += $grossPrice * $itemQuantity;
-        $totalDiscountAmount += $discountAmount * $itemQuantity;
-        $netTotal += $amount; // This is the sum of discounted amounts for all items
-        
-        // $totalGst += ($discountedNetPrice * ($gstRate / 100)) * $itemQuantity; // This line was in original code but is unused in grand total
+    $subtotal += $originalPrice * $quantity;
+    $netTotal += $discountedPrice * $quantity;
 
-        $rowsHtml .= "<tr><td>" . ($index + 1) . "</td><td class='left'>" . htmlspecialchars($item['product_name'], ENT_QUOTES, 'UTF-8') . "</td><td>" . number_format($grossPrice, 2) . "</td><td>" . number_format($discountAmount, 2) . " (" . number_format($itemDiscount, 2) . "%)</td><td>" . number_format($simpleDiscountedPrice, 2) . "</td><td>" . $itemQuantity . "</td><td>" . number_format($amount, 2) . "</td></tr>";
-    }
-    
-    $packingcharge = ($netTotal * $packingpercent) / 100;
-    $overallTotal = $netTotal + $packingcharge; // + $totalGst;
+    $rowsHtml .= "<tr>
+        <td>" . ($index + 1) . "</td>
+        <td class='left'>" . htmlspecialchars($item['product_name'], ENT_QUOTES, 'UTF-8') . "</td>
+        <td>" . number_format($originalPrice, 2) . "</td>
+        <td>" . number_format($discountAmount,2) . " (" . number_format($discountPerc,2) . "%)</td>
+        <td>" . number_format($discountedPrice,2) . "</td>
+        <td>" . $quantity . "</td>
+        <td>" . number_format($discountedPrice * $quantity,2) . "</td>
+    </tr>";
+}
 
-    // --- END: CONVERTED FROM POST TO GET/DB FETCH ---
-
-    // The rest of the file is the PDF generation and email logic, which remains unchanged
-    
-
+// Calculate packing charge and overall total
+$packingcharge = ($netTotal * $packingpercent) / 100;
+$overallTotal = $netTotal + $packingcharge;
 
         // Generate HTML for PDF
         $html = "
@@ -162,6 +153,7 @@ try {
                     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
                 }
             </style>
+            <title>Estimate Invoice - $enquiryNumber</title>
         </head>
         <body>
             <div style='margin: 30px auto; max-width: 900px; border: 2px solid #4b5563; background: #fff; padding: 20px; box-shadow: 0 2px 8px #ccc;'>

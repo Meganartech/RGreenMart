@@ -1,14 +1,20 @@
 <?php
 require_once $_SERVER["DOCUMENT_ROOT"] . "/dbconf.php";
+try {
+    $stmt = $conn->prepare("SELECT * FROM admin_details LIMIT 1");
+    $stmt->execute();
+    $contact = $stmt->fetch(PDO::FETCH_ASSOC);
 
+    $address = $contact['shopaddress'] ?? 'Madurai, Tamil Nadu';
+    $mobile  = $contact['phone'] ?? '';
+    $office  = $contact['office'] ?? '';
+    $email   = $contact['email'] ?? 'info@rgreencrackers.com';
 
-// Fetch contact info from DB
-$contactStmt = mysqli_query(mysqli, "SELECT * FROM admin_details LIMIT 1");
-$contact = mysqli_fetch_assoc($contactStmt);
-$address = $contact['shopaddress'] ?? 'Sivakasi, Tamil Nadu';
-$mobile = $contact['phone'] ;
-$office = $contact['office'] ?? '';
-$email = $contact['email'] ?? 'info@rgreencrackers.com';
+} catch (PDOException $e) {
+    // Handle error gracefully
+    echo "Database error: " . $e->getMessage();
+    exit;
+}
 ?>
 
 <!DOCTYPE html>
@@ -17,8 +23,6 @@ $email = $contact['email'] ?? 'info@rgreencrackers.com';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>About RGreenMart </title>
-    <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
-    <link href="assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
     <script src="../cart.js"></script>
     <link rel="icon" type="image/png" href="../images/LOGO.jpg">
     <style>

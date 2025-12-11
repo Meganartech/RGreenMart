@@ -11,7 +11,7 @@
 
 <body>
 
-        <?php include "includes/header.php"; ?>
+    <?php require_once $_SERVER["DOCUMENT_ROOT"] . "/includes/header.php"; ?>
    
 
     <div class="cartsplit">
@@ -29,7 +29,7 @@
     <p>Total Items: <span id="totalItems">0</span></p>
     <p>Total Quantity: <span id="totalQty">0</span></p>
     <p>Total Amount: <span id="grandTotal" class="finalTotal">0</span></p>
-    <button onclick="window.location.href='details.php'" class="checkout-btn">
+    <button onclick="window.location.href='add_delivery_address.php'" class="checkout-btn">
     Checkout
 </button>
 
@@ -37,10 +37,10 @@
 </div>
 
     </div>
-
-</body>
-
-<script>
+ <?php require_once $_SERVER["DOCUMENT_ROOT"] ."/includes/footer.php"; ?>
+    
+    <div id="toast-container"></div>
+    <script>
 loadCart();
 
 
@@ -83,5 +83,8 @@ document.addEventListener("DOMContentLoaded", () => {
     updateCartCount();
 });
 </script>
+
+</body>
+
 
 </html>

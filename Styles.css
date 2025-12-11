@@ -778,10 +778,15 @@ box-shadow: 0 3px 6px rgba(239,68,68,0.4);
 }
 
 .product-title {
-font-size: 19px;
-font-weight: 700;
-margin: 14px 0 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 19px;
+    font-weight: 700;
+    margin: 14px 0 6px;
 }
+
+
 
 .brand {
 font-size: 15px;
@@ -6941,3 +6946,28 @@ transition: 0.3s ease;
 background: linear-gradient(135deg, #4f46e5, #4338ca);
 transform: translateY(-2px);
 }
+
+ .scrolling-text-container {
+            overflow: hidden;
+            background-color: #ffe6e6;
+            padding: 0.5rem 0;
+        }
+        .scrolling-text {
+            display: inline-block;
+            white-space: nowrap;
+            color: red;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.9rem;
+            animation: scroll 20s linear infinite;
+        }
+        @keyframes scroll {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+
+          @media (max-width: 600px) {
+            
+            .scrolling-text {
+                font-size: 0.8rem;
+            }
+          }

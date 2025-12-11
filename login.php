@@ -14,7 +14,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $password   = trim($_POST["password"]);
 
     // Fetch user by mobile or email
-    $sql  = "SELECT * FROM users WHERE mobile = :id OR email = :id LIMIT 1";
+    $sql  = "SELECT * FROM users WHERE  email = :id LIMIT 1";
     $stmt = $conn->prepare($sql);
     $stmt->execute(['id' => $identifier]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -50,6 +50,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
 <title>Login</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="/cart.js"></script>
 </head>
   
 <body>
@@ -68,10 +69,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <form method="POST">
 
         <!-- Email / Mobile -->
-        <label class="block text-gray-700 font-medium mb-1">Mobile or Email</label>
+        <label class="block text-gray-700 font-medium mb-1">Email</label>
         <input type="text" name="identifier" required
                class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none mb-4"
-               placeholder="Enter mobile number or email">
+               placeholder="Enter  email">
 
         <!-- Password -->
         <label class="block text-gray-700 font-medium mb-1">Password</label>

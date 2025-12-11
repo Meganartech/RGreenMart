@@ -43,7 +43,7 @@ $paymentId = $_GET['payment_id'] ?? null;
 $signature = $_GET['signature'] ?? null;
 
 // Basic validation (same as before)
-if (!$orderId || !$paymentId || !$signature || !isset($_SESSION['order_id']) || $orderId != $_SESSION['order_id']) {
+if (!$orderId || !$paymentId || !$signature ) {
     die("Invalid payment request parameters or session mismatch.");
 }
 

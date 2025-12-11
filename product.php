@@ -57,7 +57,8 @@ $brandName = $brandStmt->fetchColumn() ?: "No Brand";
 </head>
 
 <body>
-<?php include "includes/header.php"; ?>
+       <?php require_once $_SERVER["DOCUMENT_ROOT"] . "/includes/header.php"; ?>
+   
 <div class="max-w-6xl mx-auto p-6 mt-10 bg-white shadow-lg rounded-xl mb-5">
 
     <!-- Product Main Block -->
@@ -265,6 +266,8 @@ function sendToCart() {
     });
 }
 </script>
-
+  <?php require_once $_SERVER["DOCUMENT_ROOT"] ."/includes/footer.php"; ?>
+    
+    <div id="toast-container"></div>
 </body>
 </html>

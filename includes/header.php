@@ -1,8 +1,4 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
 $isLoggedIn = isset($_SESSION['user_id']);
 
 // Ensure the header is only included once
@@ -96,7 +92,7 @@ if (!defined('HEADER_INCLUDED')) {
 
                 </nav>
                  
-                      <a href="index.php?page=viewcart" class="hideanchor mr-5 cart-link">
+                      <a href="viewcart.php" class="hideanchor mr-5 cart-link">
                         <div class=" mx-1" title="continue to pay">
                             <div class="cart-icon-wrapper">
                                 <i class="fa-solid fa-cart-shopping headicon" style="font-size:22px;"></i>
