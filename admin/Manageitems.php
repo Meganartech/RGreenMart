@@ -141,7 +141,6 @@ unset($it);
             <table class="w-full border-collapse bg-white rounded-lg shadow-sm">
                 <thead>
                     <tr class="bg-indigo-500 text-white text-sm">
-                        <th class="p-2">ID</th>
                         <th class="p-2">Name</th>
                         <th class="p-2">Price Range</th>
                         <th class="p-2">Total Stock</th>
@@ -167,7 +166,6 @@ unset($it);
                 <tbody>
                     <?php foreach($items as $item): ?>
                     <tr class="hover:bg-gray-50 text-sm">
-                        <td class="p-2 border"><?= $item['id'] ?></td>
                         <td class="p-2 border"><?= htmlspecialchars($item['name']) ?></td>
                         <td class="p-2 border"><?php if ($item['min_price'] !== null) { echo '₹' . $item['min_price']; if ($item['max_price'] !== null && $item['max_price'] != $item['min_price']) echo ' - ₹' . $item['max_price']; } else { echo 'N/A'; } ?></td>
                         <td class="p-2 border"><?= $item['total_stock'] ?></td>

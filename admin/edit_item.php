@@ -262,11 +262,11 @@ function compressImage($source, $destination, $quality = 25) {
                                             </div>
                                             <div>
                                                 <label class="text-[10px] uppercase font-bold text-gray-500">Price</label>
-                                                <input type="number" step="0.01" name="variant_price[]" value="<?=$v['price']?>" class="w-full p-1.5 text-sm border rounded">
+                                                <input type="number" step="0.01" name="variant_price[]" oninput="computeVariantDiscount(this.closest('.variant-row'))" value="<?=$v['price']?>" class="w-full p-1.5 text-sm border rounded">
                                             </div>
                                             <div>
                                                 <label class="text-[10px] uppercase font-bold text-gray-500">Old Price</label>
-                                                <input type="number" step="0.01" name="variant_old_price[]" value="<?=$v['old_price']?>" class="w-full p-1.5 text-sm border rounded">
+                                                <input type="number" step="0.01" name="variant_old_price[]" oninput="computeVariantDiscount(this.closest('.variant-row'))" value="<?=$v['old_price']?>" class="w-full p-1.5 text-sm border rounded">
                                             </div>
                                             <div>
                                                 <label class="text-[10px] uppercase font-bold text-gray-500">Stock</label>
@@ -274,7 +274,7 @@ function compressImage($source, $destination, $quality = 25) {
                                             </div>
                                             <div>
                                                 <label class="text-[10px] uppercase font-bold text-gray-500">Discount%</label>
-                                                <input type="text" name="variant_discount[]" value="<?=$v['discount']?>" readonly class="w-full p-1.5 text-sm border rounded bg-gray-100">
+                                                <input type="text" name="variant_discount[]" value="<?= round($v['discount']) ?>%" readonly class="w-full p-1.5 text-sm border rounded bg-gray-100">
                                             </div>
                                             <input type="hidden" name="variant_status[]" value="1">
                                         </div>
@@ -512,29 +512,59 @@ function compressImage($source, $destination, $quality = 25) {
     }
 
     /* --- VARIANTS --- */
-    function addVariantRow() {
-        const html = `
-        <div class="variant-row bg-gray-50 p-3 rounded-lg border relative">
-            <div class="grid grid-cols-3 gap-2">
-                <div class="col-span-2">
-                    <label class="text-[10px] uppercase font-bold text-gray-500">Weight</label>
-                    <div class="flex gap-1">
-                        <input type="number" step="0.01" name="variant_weight_value[]" required class="w-2/3 p-1.5 text-sm border rounded">
-                        <select name="variant_weight_unit[]" class="w-1/3 p-1.5 text-sm border rounded">
-                            <option value="g">g</option><option value="kg">kg</option><option value="ml">ml</option><option value="l">l</option>
-                        </select>
-                    </div>
-                </div>
-                <div><label class="text-[10px] uppercase font-bold text-gray-500">Price</label><input type="number" step="0.01" name="variant_price[]" required class="w-full p-1.5 text-sm border rounded"></div>
-                <div><label class="text-[10px] uppercase font-bold text-gray-500">Old Price</label><input type="number" step="0.01" name="variant_old_price[]" class="w-full p-1.5 text-sm border rounded"></div>
-                <div><label class="text-[10px] uppercase font-bold text-gray-500">Stock</label><input type="number" name="variant_stock[]" value="0" class="w-full p-1.5 text-sm border rounded"></div>
-                <div><label class="text-[10px] uppercase font-bold text-gray-500">Discount%</label><input type="text" name="variant_discount[]" readonly class="w-full p-1.5 text-sm border rounded bg-gray-100"></div>
-                <input type="hidden" name="variant_status[]" value="1">
-            </div>
-            <button type="button" onclick="this.parentElement.remove()" class="absolute -top-2 -right-2 bg-red-500 text-white w-5 h-5 rounded-full text-xs">×</button>
-        </div>`;
-        document.getElementById("variantsContainer").insertAdjacentHTML('beforeend', html);
+   function computeVariantDiscount(row) {
+    const priceInput = row.querySelector('input[name="variant_price[]"]');
+    const oldPriceInput = row.querySelector('input[name="variant_old_price[]"]');
+    const discountInput = row.querySelector('input[name="variant_discount[]"]');
+
+    const price = parseFloat(priceInput.value) || 0;
+    const oldPrice = parseFloat(oldPriceInput.value) || 0;
+
+    if (oldPrice > price && price > 0) {
+        const percentage = ((oldPrice - price) / oldPrice) * 100;
+        
+        // Use Math.round() to turn 12.5 into 13
+        discountInput.value = Math.round(percentage) + "%"; 
+    } else {
+        discountInput.value = "0%";
     }
+}
+ function addVariantRow() {
+    const html = `
+    <div class="variant-row bg-gray-50 p-3 rounded-lg border relative mb-3">
+        <div class="grid grid-cols-3 gap-2">
+            <div class="col-span-2">
+                <label class="text-[10px] uppercase font-bold text-gray-500">Weight</label>
+                <div class="flex gap-1">
+                    <input type="number" step="0.01" name="variant_weight_value[]" required class="w-2/3 p-1.5 text-sm border rounded">
+                    <select name="variant_weight_unit[]" class="w-1/3 p-1.5 text-sm border rounded">
+                        <option value="g">g</option><option value="kg">kg</option>
+                        <option value="ml">ml</option><option value="l">l</option>
+                        <option value="pcs">pcs</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label class="text-[10px] uppercase font-bold text-gray-500">Price</label>
+                <input type="number" step="0.01" name="variant_price[]" oninput="computeVariantDiscount(this.closest('.variant-row'))" required class="w-full p-1.5 text-sm border rounded">
+            </div>
+            <div>
+                <label class="text-[10px] uppercase font-bold text-gray-500">Old Price</label>
+                <input type="number" step="0.01" name="variant_old_price[]" oninput="computeVariantDiscount(this.closest('.variant-row'))" class="w-full p-1.5 text-sm border rounded">
+            </div>
+            <div>
+                <label class="text-[10px] uppercase font-bold text-gray-500">Discount%</label>
+                <input type="text" name="variant_discount[]" readonly class="w-full p-1.5 text-sm border rounded bg-gray-100">
+            </div>
+            <div>
+                <label class="text-[10px] uppercase font-bold text-gray-500">Stock</label>
+                <input type="number" name="variant_stock[]" value="0" class="w-full p-1.5 text-sm border rounded">
+            </div>
+        </div>
+        <button type="button" onclick="this.parentElement.remove()" class="absolute -top-2 -right-2 bg-red-500 text-white w-5 h-5 rounded-full text-xs">×</button>
+    </div>`;
+    document.getElementById("variantsContainer").insertAdjacentHTML('beforeend', html);
+}
 
     // Modal helpers
     function openCategoryModal() { document.getElementById("categoryModal").classList.remove("hidden"); }

@@ -7,14 +7,61 @@ function adjust(change) {
 function addToCart(item) {
     const cart = JSON.parse(localStorage.getItem("cart")) || [];
 
+    // Normalize variant fields on incoming item so the cart stores consistent keys
+    item.variant_id = item.variant_id ?? item.variantId ?? null;
+    item.variant_weight = item.variant_weight ?? item.variantWeight ?? item.weight_value ?? item.weightValue ?? '';
+    item.variant_unit = item.variant_unit ?? item.variantUnit ?? item.weight_unit ?? item.weightUnit ?? '';
+    item.variant_price = Number(item.variant_price ?? item.variantPrice ?? item.price ?? 0);
+    item.variant_old_price = item.variant_old_price ?? item.variantOldPrice ?? item.old_price ?? item.oldamt ?? null;
+    item.variant_discount = item.variant_discount ?? item.variantDiscount ?? item.discount ?? item.discountRate ?? null;
+
+    // Debug: log incoming item variant info
+    console.log('addToCart called with item', {
+        id: item.id ?? null,
+        variant_id: item.variant_id ?? null,
+        variant_price: item.variant_price ?? null,
+        variant_weight: item.variant_weight ?? null,
+        variant_unit: item.variant_unit ?? null
+    });
+
     // Always safe: if cart is empty, this returns -1
-    const existingIndex = cart.findIndex(cartItem => cartItem.id === item.id);
+    // Match existing item by item id + variant id (if provided)
+    const existingIndex = cart.findIndex(cartItem => {
+        if (cartItem.id !== item.id) return false;
+        // Normalize variant ids as strings so '1' and 1 match
+        const cartVar = cartItem.variant_id == null ? null : String(cartItem.variant_id);
+        const itemVar = item.variant_id == null ? null : String(item.variant_id);
+
+        if (cartVar !== null || itemVar !== null) {
+            return cartVar === itemVar;
+        }
+        // No variant specified on either → match by item id
+        return true;
+    });
 
     if (existingIndex !== -1) {
-        // Item exists → increase qty
-        cart[existingIndex].quantity += item.quantity;
+        // Item exists → increase qty (support qty or quantity)
+        const inc = item.quantity ?? item.qty ?? 1;
+        cart[existingIndex].quantity = (cart[existingIndex].quantity ?? cart[existingIndex].qty ?? 0) + Number(inc);
+        // normalize key
+        cart[existingIndex].qty = cart[existingIndex].quantity;
+        // Ensure variant metadata is preserved on existing cart item
+        cart[existingIndex].variant_weight = cart[existingIndex].variant_weight ?? item.variant_weight ?? '';
+        cart[existingIndex].variant_unit = cart[existingIndex].variant_unit ?? item.variant_unit ?? '';
+        cart[existingIndex].variant_price = cart[existingIndex].variant_price ?? item.variant_price ?? 0;
+        cart[existingIndex].variant_old_price = cart[existingIndex].variant_old_price ?? item.variant_old_price ?? null;
+        cart[existingIndex].variant_discount = cart[existingIndex].variant_discount ?? item.variant_discount ?? null;
     } else {
         // Item doesn't exist → push new
+        // normalize incoming item fields
+        item.quantity = item.quantity ?? item.qty ?? 1;
+        item.qty = item.quantity;
+        // ensure variant fields exist on the stored item
+        item.variant_weight = item.variant_weight ?? '';
+        item.variant_unit = item.variant_unit ?? '';
+        item.variant_price = Number(item.variant_price ?? 0);
+        item.variant_old_price = item.variant_old_price ?? null;
+        item.variant_discount = item.variant_discount ?? null;
         cart.push(item);
     }
 
@@ -42,14 +89,13 @@ function loadCart() {
     let totalQty = 0;
 
     cart.forEach((item, index) => {
-        const price = Number(item.price);
-        const qty = Number(item.quantity);
-        const itemTotal = price * qty;
+        const unitPrice = Number(item.variant_price ?? item.price ?? 0);
+        const qty = Number(item.quantity ?? item.qty ?? 0);
+        const itemTotal = unitPrice * qty;
 
         grandTotal += itemTotal;
         totalQty += qty;
 
-        // Existing row render code...
         const row = document.createElement("div");
         row.classList.add("cart-item-row", "col3");
 
@@ -59,7 +105,12 @@ function loadCart() {
                 <div class="floatright">
                     <h4>${item.name}</h4>
                     <span>${item.brand || ""}</span>
-                    <span class="price-new">₹${price}</span>
+                    ${ (item.variant_weight || item.variant_unit) ? `<div class="variant">Weight: ${item.variant_weight || ''}${item.variant_unit ? ' ' + item.variant_unit : ''}</div>` : '' }
+                    <div class="price-meta">
+                        ${item.oldamt && Number(item.oldamt) > unitPrice ? `<span class="old-price" style="text-decoration:line-through; color:#888;">₹${Number(item.oldamt).toFixed(2)}</span>` : ''}
+                        <span class="price-new" style="font-weight:600; margin-left:6px;">₹${unitPrice.toFixed(2)}</span>
+                        ${item.discountRate ? `<span class="discount" style="margin-left:8px; color:#d97706;">(${item.discountRate}% OFF)</span>` : ''}
+                    </div>
                     <br/>
                     <button class=" delete-btn" onclick="removeItem(${index})">
                                Remove
@@ -69,7 +120,7 @@ function loadCart() {
 
             <div class="qty custqty">
                 <div class="qty-box">
-                    ${item.quantity > 1 
+                    ${qty > 1 
                         ? `<button class="qty-btn" onclick="changeQuantity(${index}, -1)">
                                 <i class="fa-solid fa-minus"></i>
                            </button>`
@@ -87,7 +138,7 @@ function loadCart() {
             </div>
 
             <div class="cart-item-amount">
-                <strong class="m-1">₹</strong><span id="amount-${index}" class="itemtotal">${itemTotal}</span>
+                <strong class="m-1">₹</strong><span id="amount-${index}" class="itemtotal">${itemTotal.toFixed(2)}</span>
             </div>
         `;
 
@@ -110,7 +161,7 @@ function showToast(item) {
         <img src="${item.image}" alt="${item.name}">
         <div class="mytoast-content">
             <div class="mytoast-title">${item.name}</div>
-            <div class="mytoast-price">₹${item.price}</div>
+            <div class="mytoast-price">₹${(item.variant_price ?? item.price ?? 0).toFixed(2)}</div>
         </div>
         <button onclick="location.href='viewcart.php'">View Cart</button>
     `;
@@ -127,7 +178,7 @@ function showToast(item) {
 // Update cart count
 function updateCartCount() {
     const cart = JSON.parse(localStorage.getItem("cart")) || [];
-    const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+    const totalItems = cart.reduce((sum, item) => sum + Number(item.quantity ?? item.qty ?? 0), 0);
 
     const countElement = document.getElementById("cartCount");
     if (countElement) {
@@ -137,7 +188,8 @@ function updateCartCount() {
 function changeQuantity(index, change) {
     let cart = JSON.parse(localStorage.getItem("cart")) || [];
     
-    let newQty = cart[index].quantity + change;
+    let current = Number(cart[index].quantity ?? cart[index].qty ?? 0);
+    let newQty = current + change;
 
     // If quantity becomes zero → remove item
     if (newQty <= 0) {
@@ -146,6 +198,7 @@ function changeQuantity(index, change) {
         showToastMessage(`${removedItem} removed from cart`);
     } else {
         cart[index].quantity = newQty;
+        cart[index].qty = newQty;
 
         if (change > 0) {
             showToastMessage("1 item added");
@@ -154,6 +207,15 @@ function changeQuantity(index, change) {
         }
     }
 
+    localStorage.setItem("cart", JSON.stringify(cart));
+    loadCart();
+    updateCartCount();
+}
+function setQty(index, value) {
+    let cart = JSON.parse(localStorage.getItem("cart")) || [];
+    const newQty = Math.max(1, Number(value));
+    cart[index].quantity = newQty;
+    cart[index].qty = newQty;
     localStorage.setItem("cart", JSON.stringify(cart));
     loadCart();
     updateCartCount();

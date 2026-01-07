@@ -78,22 +78,50 @@ try {
     $orderId = $conn->lastInsertId();
 
     // 5. INSERT ORDER ITEMS
-    $stmt = $conn->prepare("INSERT INTO order_items 
-        (order_id, item_id, original_price, discount_percentage, discounted_price, quantity, amount) 
-        VALUES (?, ?, ?, ?, ?, ?, ?)");
+    // Check which columns exist in order_items table (to safely support variant columns)
+    $colsStmt = $conn->prepare("SELECT column_name FROM information_schema.columns WHERE table_schema = ? AND table_name = 'order_items'");
+    $dbName = $_ENV['DB_NAME'] ?? (parse_url($_ENV['DATABASE_URL'] ?? '')['path'] ?? null);
+    if (!$dbName) {
+        // Try connection DB name from PDO
+        $dbName = $conn->query('select database()')->fetchColumn();
+    }
+    $colsStmt->execute([$dbName]);
+    $cols = $colsStmt->fetchAll(PDO::FETCH_COLUMN);
+
+    $hasVariantId = in_array('variant_id', $cols);
+    $hasVariantWeightValue = in_array('variant_weight_value', $cols);
+    $hasVariantWeightUnit = in_array('variant_weight_unit', $cols);
+    $hasVariantPrice = in_array('variant_price', $cols);
+
+    // Build insert SQL dynamically
+    $baseCols = ['order_id','item_id','original_price','discount_percentage','discounted_price','quantity','amount'];
+    if ($hasVariantId) $baseCols[] = 'variant_id';
+    if ($hasVariantWeightValue) $baseCols[] = 'variant_weight_value';
+    if ($hasVariantWeightUnit) $baseCols[] = 'variant_weight_unit';
+    if ($hasVariantPrice) $baseCols[] = 'variant_price';
+
+    $placeholders = implode(', ', array_fill(0, count($baseCols), '?'));
+    $insertSql = 'INSERT INTO order_items (' . implode(',', $baseCols) . ') VALUES (' . $placeholders . ')';
+    $stmt = $conn->prepare($insertSql);
 
     foreach ($cartItems as $item) {
-        $qty = $item["quantity"] ?? 1;
-
-        $stmt->execute([
+        $qty = $item["quantity"] ?? $item['qty'] ?? 1;
+        $params = [
             $orderId,
             $item["id"],
-            $item["oldamt"],             // original price
-            $item["discountRate"],       // discount %
-            $item["price"],              // discounted price
+            $item["oldamt"] ?? 0,
+            $item["discountRate"] ?? 0,
+            $item["price"] ?? 0,
             $qty,
-            $item["price"] * $qty        // line total
-        ]);
+            ($item["price"] ?? 0) * $qty
+        ];
+
+        if ($hasVariantId) $params[] = $item['variant_id'] ?? null;
+        if ($hasVariantWeightValue) $params[] = $item['variant_weight'] ?? ($item['weight_value'] ?? null);
+        if ($hasVariantWeightUnit) $params[] = $item['variant_unit'] ?? ($item['weight_unit'] ?? null);
+        if ($hasVariantPrice) $params[] = $item['variant_price'] ?? ($item['price'] ?? 0);
+
+        $stmt->execute($params);
     }
 
     // 6. CREATE RAZORPAY ORDER

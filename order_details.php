@@ -32,23 +32,92 @@ if (!$order) {
     die("Order not found");
 }
 
-// Fetch order items with product info
-$sqlItems = "
-    SELECT 
-        oi.*, 
-        i.name AS product_name, 
-        (
-            SELECT COALESCE(compressed_path, image_path) FROM item_images
-            WHERE item_images.item_id = i.id
-            ORDER BY is_primary DESC, sort_order ASC LIMIT 1
-        ) AS product_image
-    FROM order_items oi
-    LEFT JOIN items i ON oi.item_id = i.id
-    WHERE oi.order_id = ?
-";
+// Fetch order items with product and variant info (schema-safe)
+$dbName = $_ENV['DB_NAME'] ?? $conn->query('select database()')->fetchColumn();
+$colsStmt = $conn->prepare("SELECT column_name FROM information_schema.columns WHERE table_schema = ? AND table_name = 'order_items'");
+$colsStmt->execute([$dbName]);
+$cols = $colsStmt->fetchAll(PDO::FETCH_COLUMN);
+$hasVariantId = in_array('variant_id', $cols);
+
+if ($hasVariantId) {
+    $sqlItems = "
+        SELECT 
+            oi.*, 
+            i.name AS product_name,
+            v.weight_value AS variant_weight,
+            v.weight_unit AS variant_unit,
+            v.price AS variant_price,
+            v.old_price AS variant_old_price,
+            v.discount AS variant_discount,
+            (
+                SELECT COALESCE(compressed_path, image_path) FROM item_images
+                WHERE item_images.item_id = i.id
+                ORDER BY is_primary DESC, sort_order ASC LIMIT 1
+            ) AS product_image
+        FROM order_items oi
+        LEFT JOIN items i ON oi.item_id = i.id
+        LEFT JOIN item_variants v ON oi.variant_id = v.id
+        WHERE oi.order_id = ?
+    ";
+} else {
+    // No variant_id on order_items — try to infer variant by matching price
+    $hasVariantPrice = in_array('variant_price', $cols);
+    if ($hasVariantPrice) {
+        $priceExpr = "COALESCE(oi.variant_price, oi.discounted_price, oi.original_price)";
+    } else {
+        $priceExpr = "COALESCE(oi.discounted_price, oi.original_price)";
+    }
+
+    $sqlItems = "
+        SELECT 
+            oi.*, 
+            i.name AS product_name,
+            (
+                SELECT weight_value FROM item_variants 
+                WHERE item_variants.item_id = oi.item_id 
+                AND item_variants.price = " . $priceExpr . "
+                LIMIT 1
+            ) AS variant_weight,
+            (
+                SELECT weight_unit FROM item_variants 
+                WHERE item_variants.item_id = oi.item_id 
+                AND item_variants.price = " . $priceExpr . "
+                LIMIT 1
+            ) AS variant_unit,
+            (
+                SELECT price FROM item_variants 
+                WHERE item_variants.item_id = oi.item_id 
+                AND item_variants.price = " . $priceExpr . "
+                LIMIT 1
+            ) AS variant_price,
+            NULL AS variant_old_price,
+            NULL AS variant_discount,
+            (
+                SELECT COALESCE(compressed_path, image_path) FROM item_images
+                WHERE item_images.item_id = i.id
+                ORDER BY is_primary DESC, sort_order ASC LIMIT 1
+            ) AS product_image
+        FROM order_items oi
+        LEFT JOIN items i ON oi.item_id = i.id
+        WHERE oi.order_id = ?
+    ";
+}
+
 $stmtItems = $conn->prepare($sqlItems);
 $stmtItems->execute([$orderId]);
 $orderItems = $stmtItems->fetchAll(PDO::FETCH_ASSOC);
+
+// Aggregate distinct variant weights present in this order for a brief summary
+$variantWeightsArr = [];
+foreach ($orderItems as $it) {
+    $w = trim((string)($it['variant_weight'] ?? $it['variant_weight_value'] ?? ''));
+    $u = trim((string)($it['variant_unit'] ?? $it['variant_weight_unit'] ?? ''));
+    if ($w !== '') {
+        $entry = trim($w . ' ' . $u);
+        if (!empty($entry)) $variantWeightsArr[$entry] = true;
+    }
+}
+$variantWeightsSummary = implode(', ', array_keys($variantWeightsArr));
 ?>
 
 <!DOCTYPE html>
@@ -89,6 +158,9 @@ $orderItems = $stmtItems->fetchAll(PDO::FETCH_ASSOC);
             <p><span class="font-semibold">Name:</span> <?= htmlspecialchars($order['contact_name']) ?></p>
             <p><span class="font-semibold">Mobile:</span> <?= htmlspecialchars($order['contact_mobile']) ?></p>
             <p><span class="font-semibold">Address:</span> <?= htmlspecialchars($order['address_line1']) ?> <?= htmlspecialchars($order['address_line2']) ?>, <?= htmlspecialchars($order['city']) ?>, <?= htmlspecialchars($order['state']) ?> - <?= htmlspecialchars($order['pincode']) ?></p>
+            <?php if(!empty($variantWeightsSummary)): ?>
+                <p><span class="font-semibold">Weights in order:</span> <?= htmlspecialchars($variantWeightsSummary) ?></p>
+            <?php endif; ?>
         </div>
         <div class="space-y-2">
             <p><span class="font-semibold">Payment Status:</span> 
@@ -164,10 +236,20 @@ $orderItems = $stmtItems->fetchAll(PDO::FETCH_ASSOC);
             <div class="flex-1">
                 <h3 class="text-lg font-semibold text-green-800"><?= htmlspecialchars($item['product_name']) ?></h3>
                 <p class="text-gray-600">
-                    Price: ₹<?= number_format($item['original_price'],2) ?> | Discount: <?= $item['discount_percentage'] ?>%
+                    <?php if(!empty($item['variant_weight'])): ?>
+                        <strong>Weight:</strong> <?= htmlspecialchars($item['variant_weight']) ?> <?= htmlspecialchars($item['variant_unit']) ?>
+                        &nbsp;|&nbsp;
+                    <?php endif; ?>
+                    <strong>Unit Price:</strong> ₹<?= number_format($item['variant_price'] ?? $item['discounted_price'] ?? 0,2) ?>
+                    <?php if(!empty($item['original_price']) && $item['original_price'] > ($item['variant_price'] ?? $item['discounted_price'] ?? 0)): ?>
+                        &nbsp; <span style="text-decoration:line-through; color:#888;">₹<?= number_format($item['original_price'],2) ?></span>
+                    <?php endif; ?>
+                    <?php if(!empty($item['discount_percentage'])): ?>
+                        &nbsp;<span style="color:#d97706;">(<?= $item['discount_percentage'] ?>% OFF)</span>
+                    <?php endif; ?>
                 </p>
                 <p class="text-gray-600">
-                    Qunatity: <?= $item['quantity'] ?> | Amount: ₹<?= number_format($item['amount'],2) ?>
+                    <strong>Quantity:</strong> <?= $item['quantity'] ?> &nbsp;|&nbsp; <strong>Amount:</strong> ₹<?= number_format($item['amount'],2) ?>
                 </p>
             </div>
         </div>

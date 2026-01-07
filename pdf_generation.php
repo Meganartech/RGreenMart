@@ -48,13 +48,42 @@ try {
     $overallTotal    = $order['overall_total'];
     $subtotal        = $order['subtotal'];
 
-    // 2. Fetch Order Items
-  $itemsStmt = $conn->prepare("
-        SELECT oi.*, i.name AS product_name
+    // 2. Fetch Order Items (schema-safe: only join item_variants if order_items.variant_id exists)
+  $dbName = $_ENV['DB_NAME'] ?? $conn->query('select database()')->fetchColumn();
+  $colsStmt = $conn->prepare("SELECT column_name FROM information_schema.columns WHERE table_schema = ? AND table_name = 'order_items'");
+  $colsStmt->execute([$dbName]);
+  $cols = $colsStmt->fetchAll(PDO::FETCH_COLUMN);
+  $hasVariantId = in_array('variant_id', $cols);
+
+  if ($hasVariantId) {
+    $itemsSql = "
+        SELECT oi.*, i.name AS product_name,
+               v.weight_value AS variant_weight,
+               v.weight_unit AS variant_unit,
+               v.price AS variant_price,
+               v.old_price AS variant_old_price,
+               v.discount AS variant_discount
+        FROM order_items oi
+        JOIN items i ON i.id = oi.item_id
+        LEFT JOIN item_variants v ON oi.variant_id = v.id
+        WHERE oi.order_id = ?
+    ";
+  } else {
+    // Variant info not stored on order_items in this schema; return nulls so downstream logic keeps working
+    $itemsSql = "
+        SELECT oi.*, i.name AS product_name,
+               NULL AS variant_weight,
+               NULL AS variant_unit,
+               NULL AS variant_price,
+               NULL AS variant_old_price,
+               NULL AS variant_discount
         FROM order_items oi
         JOIN items i ON i.id = oi.item_id
         WHERE oi.order_id = ?
-    ");
+    ";
+  }
+
+    $itemsStmt = $conn->prepare($itemsSql);
     $itemsStmt->execute([$orderId]);
     $itemsBought = $itemsStmt->fetchAll(PDO::FETCH_ASSOC);
     
@@ -96,7 +125,8 @@ $rowsHtml = "";
 foreach ($itemsBought as $index => $item) {
     $originalPrice = $item['original_price'];
     $discountPerc  = $item['discount_percentage'];
-    $discountedPrice = $item['discounted_price'];
+    // If variant_price exists use it as unit price, otherwise use discounted_price
+    $discountedPrice = $item['variant_price'] ?? $item['discounted_price'];
     $quantity = $item['quantity'];
 
     $discountAmount = ($originalPrice - $discountedPrice); // per unit
@@ -105,9 +135,14 @@ foreach ($itemsBought as $index => $item) {
     $subtotal += $originalPrice * $quantity;
     $netTotal += $discountedPrice * $quantity;
 
+    $productDisplay = htmlspecialchars($item['product_name'], ENT_QUOTES, 'UTF-8');
+    if (!empty($item['variant_weight'])) {
+        $productDisplay .= " - " . htmlspecialchars($item['variant_weight'], ENT_QUOTES, 'UTF-8') . ' ' . htmlspecialchars($item['variant_unit'], ENT_QUOTES, 'UTF-8');
+    }
+
     $rowsHtml .= "<tr>
         <td>" . ($index + 1) . "</td>
-        <td class='left'>" . htmlspecialchars($item['product_name'], ENT_QUOTES, 'UTF-8') . "</td>
+        <td class='left'>" . $productDisplay . "</td>
         <td>" . number_format($originalPrice, 2) . "</td>
         <td>" . number_format($discountAmount,2) . " (" . number_format($discountPerc,2) . "%)</td>
         <td>" . number_format($discountedPrice,2) . "</td>

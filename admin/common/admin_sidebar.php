@@ -11,6 +11,7 @@
         <a href="order.php" class="block p-3 rounded hover:bg-indigo-700 transition-colors">Orders</a>
         <a href="Manageitems.php" class="block p-3 rounded hover:bg-indigo-700 transition-colors">Manage items</a>
         <a href="Additems.php" class="block p-3 rounded hover:bg-indigo-700 transition-colors">Add items</a>
+        <a href="bundleupload.php" class="block p-3 rounded hover:bg-indigo-700 transition-colors">Bundle Upload</a>
         <a href="ListOfEnquiries.php" class="block p-3 rounded hover:bg-indigo-700 transition-colors">List of Enquiries</a>
         <a href="Setting.php" class="block p-3 rounded hover:bg-indigo-700 transition-colors">Settings</a>
         <a href="Profile.php" class="block p-3 rounded hover:bg-indigo-700 transition-colors">Admin Profile</a>

@@ -342,6 +342,29 @@ $message = urlencode(WHATSAPP_DEFAULT_MESSAGE);
     </div>
 </footer>
 
+<script>
+// Replace 'Variants' labels with 'Weight' on orders pages only
+(function(){
+    function replaceLabels(){
+        // Only run when on pages that show orders or order details
+        if(!document.querySelector('.orders-container') && !document.querySelector('.bg-white') ) return;
+        document.querySelectorAll('.order-info p, .bg-white p').forEach(function(p){
+            var txt = (p.textContent || '').trim();
+            if(txt.indexOf('Variants:') === 0){
+                p.innerHTML = p.innerHTML.replace('Variants:', '<strong>Weight:</strong>');
+            }
+            if(txt.indexOf('Variant:') === 0){
+                p.innerHTML = p.innerHTML.replace('Variant:', '<strong>Weight:</strong>');
+            }
+            if(txt.indexOf('Variants in order:') === 0){
+                p.innerHTML = p.innerHTML.replace('Variants in order:', '<strong>Weights in order:</strong>');
+            }
+        });
+    }
+    document.addEventListener('DOMContentLoaded', replaceLabels);
+})();
+</script>
+
 <!-- ✅ WhatsApp Floating Button -->
 <a href="https://wa.me/<?php echo $whatsappNumber; ?>?text=<?php echo $message; ?>"
    class="whatsapp-float"

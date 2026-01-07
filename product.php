@@ -13,43 +13,29 @@ $gstRate = isset($settings['gst_rate']) ? floatval($settings['gst_rate']) : 18;
 if (!$product) exit("Product Not Found");
 
 // ----------------------- IMAGE LOGIC -----------------------
-
 $defaultImage = "./images/default.jpg";
 
-// Try to get primary image from item_images table first
 $imgStmt = $conn->prepare("SELECT compressed_path, image_path FROM item_images WHERE item_id = ? ORDER BY is_primary DESC, sort_order ASC LIMIT 1");
 $imgStmt->execute([$id]);
 $img = $imgStmt->fetch(PDO::FETCH_ASSOC);
 
 if ($img && (!empty($img['compressed_path']) || !empty($img['image_path']))) {
     $candidate = !empty($img['compressed_path']) ? $img['compressed_path'] : $img['image_path'];
-
-    // Try candidate in multiple locations (root and admin/ prefix)
-    $variants = [
-        '/' . ltrim($candidate, '/'),
-        '/admin/' . ltrim($candidate, '/'),
-    ];
-
+    $variants_paths = ['/' . ltrim($candidate, '/'), '/admin/' . ltrim($candidate, '/')];
     $found = false;
-    foreach ($variants as $v) {
+    foreach ($variants_paths as $v) {
         if (file_exists($_SERVER['DOCUMENT_ROOT'] . $v)) {
             $displayImgPath = $v;
             $found = true;
             break;
         }
     }
-    if (!$found) {
-        $displayImgPath = $defaultImage;
-    }
+    if (!$found) $displayImgPath = $defaultImage;
 } else {
-    // Backwards compatible fallback to legacy columns
-    $image = basename($product['image']);
+    $image = basename($product['image'] ?? '');
     $originalImgPath = "./admin/Uploads/$image";
     $compressedImgPath = "./admin/Uploads/compressed/$image";
-
-    $displayImgPath = file_exists($compressedImgPath)
-        ? $compressedImgPath
-        : (file_exists($originalImgPath) ? $originalImgPath : $defaultImage);
+    $displayImgPath = file_exists($compressedImgPath) ? $compressedImgPath : (file_exists($originalImgPath) ? $originalImgPath : $defaultImage);
 }
 
 $displayImgPath = htmlspecialchars($displayImgPath, ENT_QUOTES, 'UTF-8');
@@ -63,68 +49,62 @@ $rows = $allStmt->fetchAll(PDO::FETCH_ASSOC);
 foreach ($rows as $r) {
     $candidate = !empty($r['compressed_path']) ? $r['compressed_path'] : $r['image_path'];
     if (empty($candidate)) continue;
-    $variants = ['/' . ltrim($candidate, '/'), '/admin/' . ltrim($candidate, '/')];
+    $v_check = ['/' . ltrim($candidate, '/'), '/admin/' . ltrim($candidate, '/')];
     $src = null;
-    foreach ($variants as $v) {
-        if (file_exists($_SERVER['DOCUMENT_ROOT'] . $v)) { $src = $v; break; }
+    foreach ($v_check as $vc) {
+        if (file_exists($_SERVER['DOCUMENT_ROOT'] . $vc)) { $src = $vc; break; }
     }
     if (!$src) continue;
-    $images[] = [
-        'id' => $r['id'],
-        'src' => $src,
-        'is_primary' => (bool)$r['is_primary']
-    ];
+    $images[] = ['id' => $r['id'], 'src' => $src, 'is_primary' => (bool)$r['is_primary']];
 }
 
-// If no images found via table, try legacy locations if product image exists
 if (empty($images)) {
-    $image = basename($product['image']);
+    $image = basename($product['image'] ?? '');
     if ($image) {
         $orig = '/admin/Uploads/' . $image;
         $comp = '/admin/Uploads/compressed/' . $image;
-        if (file_exists($_SERVER['DOCUMENT_ROOT'] . $comp)) {
-            $images[] = ['id'=>0,'src'=>$comp,'is_primary'=>true];
-        } elseif (file_exists($_SERVER['DOCUMENT_ROOT'] . $orig)) {
-            $images[] = ['id'=>0,'src'=>$orig,'is_primary'=>true];
-        }
+        if (file_exists($_SERVER['DOCUMENT_ROOT'] . $comp)) $images[] = ['id'=>0,'src'=>$comp,'is_primary'=>true];
+        elseif (file_exists($_SERVER['DOCUMENT_ROOT'] . $orig)) $images[] = ['id'=>0,'src'=>$orig,'is_primary'=>true];
     }
 }
 
-// Determine initial main image: primary first, else first image, else default
-$mainImageSrc = $displayImgPath; // start with computed display
+$mainImageSrc = $displayImgPath;
 $initialIndex = 0;
 if (!empty($images)) {
-    $primaryFound = null;
     foreach ($images as $idx => $imgEntry) {
-        if ($imgEntry['is_primary']) { $primaryFound = $imgEntry['src']; $initialIndex = $idx; break; }
+        if ($imgEntry['is_primary']) { $mainImageSrc = $imgEntry['src']; $initialIndex = $idx; break; }
     }
-    $mainImageSrc = $primaryFound ?? $images[0]['src'];
 }
- $mainImageSrc = htmlspecialchars($mainImageSrc, ENT_QUOTES, 'UTF-8');
+$mainImageSrc = htmlspecialchars($mainImageSrc, ENT_QUOTES, 'UTF-8');
 
+// ----------------------- VARIANTS -----------------------
+$varStmt = $conn->prepare("SELECT id, weight_value, weight_unit, price, old_price, discount, stock FROM item_variants WHERE item_id = ? AND status = 1 ORDER BY weight_value ASC");
+$varStmt->execute([$id]);
+$variants = $varStmt->fetchAll(PDO::FETCH_ASSOC);
+$defaultVariant = $variants[0] ?? null;
 
 // ----------------------- PRICE CALCULATION -----------------------
-    $discountRate=round((float) $product['discount']);
-    $grossPrice = round($product['price']); // integer
-    $netPrice = round($product['price'] / (1 + $gstRate / 100)); // integer
-    $gstAmount = $grossPrice - $netPrice; // integer by logic
-    $discountAmount = round($netPrice * ((float) $product['discount'] / 100)); // integer
-    $simpleDiscountedPrice = round($grossPrice * (1 - ((float) $product['discount'] / 100))); // integer
-    // Fetch Category
+if ($defaultVariant) {
+    $grossPrice = round($defaultVariant['price']);
+    $discountRate = round((float)$defaultVariant['discount']);
+    $simpleDiscountedPrice = round($grossPrice * (1 - ($discountRate / 100)));
+    $stockQty = (int)$defaultVariant['stock'];
+    $variantId = $defaultVariant['id'];
+} else {
+    $grossPrice = 0; $discountRate = 0; $simpleDiscountedPrice = 0; $stockQty = 0; $variantId = 0;
+}
+
 $catStmt = $conn->prepare("SELECT name FROM categories WHERE id=?");
 $catStmt->execute([$product['category_id']]);
 $categoryName = $catStmt->fetchColumn() ?: "Unknown";
 
-// Fetch Brand
 $brandStmt = $conn->prepare("SELECT name FROM brands WHERE id=?");
 $brandStmt->execute([$product['brand_id']]);
 $brandName = $brandStmt->fetchColumn() ?: "No Brand";
-                   
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -132,354 +112,324 @@ $brandName = $brandStmt->fetchColumn() ?: "No Brand";
     <link rel="icon" type="image/png" href="./images/LOGO.jpg">
     <link rel="stylesheet" href="./Styles.css">
     <script src="cart.js"></script>
-    <!-- Bootstrap CSS for carousel and components -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* Variant Box Styles */
+        .variant-grid { display: flex; flex-wrap: wrap; gap: 12px; }
+        .variant-box { min-width: 110px; padding: 10px 14px; border: 2px solid #e5e7eb; border-radius: 12px; cursor: pointer; text-align: center; background: #fff; transition: all 0.2s ease; }
+        .variant-box:hover { border-color: #16a34a; }
+        .variant-box.active { border-color: #16a34a; box-shadow: 0 0 0 2px rgba(22,163,74,0.2); background: #f0fdf4; }
+        .variant-weight { font-weight: 600; font-size: 15px; }
+        .variant-price { font-size: 14px; color: #15803d; margin-top: 4px; }
+
+        /* Carousel & Image Styles */
+        .thumb-box { position:relative; cursor:pointer; border:2px solid #e5e7eb; border-radius:6px; width:100px; height:100px; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+        .thumb-box img { width:100%; height:100%; object-fit:cover; border-radius:6px; display:block; }
+        .thumb-box.selected { border-color: #16a34a; box-shadow:0 0 0 3px rgba(16,185,129,0.12); }
+        .image-area { display:flex; gap:1rem; align-items:flex-start; }
+        .thumbs { flex: 0 0 auto; }
+        .product-main { flex:1 1 auto; }
+
+        @media (min-width: 768px) {
+            .product-main { width:500px; height:500px; background:#fff; border-radius:12px; padding:10px; border:1px solid #e5e7eb; }
+            .product-main .carousel, .product-main .carousel-inner, .product-main .carousel-item { height:480px; }
+            .product-main .product-image { width:100%; height:100%; object-fit:contain; display:block; margin:0 auto; }
+            .thumbs { min-width:120px; max-height:520px; overflow-y:auto; padding-right:6px; }
+            .thumbs .thumb-box { width:90px; height:90px; margin-bottom:8px; }
+            .thumbs::-webkit-scrollbar { width:8px; }
+            .thumbs::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius:4px; }
+        }
+
+        @media (max-width: 767px) {
+            .image-area { flex-direction: column; }
+            .thumbs { width:100%; display:flex; flex-direction:row; gap:0.5rem; overflow-x:auto; padding:0.5rem 0; }
+            .thumbs .thumb-box { width:70px; height:70px; flex:0 0 auto; }
+            .product-main { width:100%; height:auto; max-height:350px; }
+        }
+
+        .product-main .carousel-control-prev, .product-main .carousel-control-next {
+            position: absolute; top: 50%; transform: translateY(-50%); width:44px; height:44px; border-radius:50%; background: rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; border: none; z-index:20;
+        }
+    </style>
 </head>
 
 <body>
-       <?php require_once $_SERVER["DOCUMENT_ROOT"] . "/includes/header.php"; ?>
-   
-<div class=" p-6 m-10 bg-white shadow-lg rounded-xl mb-5">
+    <?php require_once $_SERVER["DOCUMENT_ROOT"] . "/includes/header.php"; ?>
 
-    <!-- Product Main Block -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
-
-        <!-- LEFT: IMAGE + THUMBNAILS -->
-        <div class="w-full image-area flex gap-4 items-start">
-            <div id="thumbsColumn" class="thumbs flex flex-col items-center gap-3" style="min-width:120px;">
-                <?php if (!empty($images)): ?>
-                    <?php foreach($images as $i => $imgEntry): ?>
-                        <div class="thumb-box <?php if($imgEntry['is_primary']) echo 'primary'; ?>" data-bs-target="#productCarousel" data-bs-slide-to="<?= $i ?>" role="button" aria-label="View image <?= $i+1 ?>" style="width:100px;height:100px;">
-                            <img src="<?= htmlspecialchars($imgEntry['src'], ENT_QUOTES, 'UTF-8') ?>" alt="thumb" style="width:100%;height:100%;object-fit:cover;border-radius:6px;display:block;" />
-                        </div>
-                    <?php endforeach; ?>
-                <?php else: ?>
-                    <div class="thumb-box" style="width:100px;height:100px;">
-                        <img src="<?= htmlspecialchars($displayImgPath, ENT_QUOTES, 'UTF-8') ?>" alt="thumb" style="width:100%;height:100%;object-fit:cover;border-radius:6px;display:block;" />
-                    </div>
-                <?php endif; ?>
-            </div>
-
-            <div class="flex-1 product-main">
-                <div id="productCarousel" class="carousel slide">
-                    <div class="carousel-inner">
+    <div class="p-6 m-10 bg-white shadow-lg rounded-xl mb-5">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+            <div class="w-full image-area flex gap-4 items-start">
+                <div id="thumbsColumn" class="thumbs flex flex-col items-center gap-3">
+                    <?php if (!empty($images)): ?>
                         <?php foreach($images as $i => $imgEntry): ?>
-                            <div class="carousel-item <?= ($i === $initialIndex) ? 'active' : '' ?>">
-                                <img src="<?= htmlspecialchars($imgEntry['src'], ENT_QUOTES, 'UTF-8') ?>" class="d-block product-image" alt="Product image <?= $i+1 ?>">
+                            <div class="thumb-box <?= ($i === $initialIndex) ? 'selected' : '' ?>" data-bs-target="#productCarousel" data-bs-slide-to="<?= $i ?>" role="button">
+                                <img src="<?= htmlspecialchars($imgEntry['src'], ENT_QUOTES, 'UTF-8') ?>" alt="thumb" />
                             </div>
                         <?php endforeach; ?>
-                        <?php if(empty($images)): ?>
-                            <div class="carousel-item active">
-                                <img src="<?= htmlspecialchars($displayImgPath, ENT_QUOTES, 'UTF-8') ?>" class="d-block product-image" alt="Product image">
-                            </div>
-                        <?php endif; ?>
+                    <?php else: ?>
+                        <div class="thumb-box selected">
+                            <img src="<?= $displayImgPath ?>" alt="thumb" />
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+                <div class="flex-1 product-main">
+                    <div id="productCarousel" class="carousel slide">
+                        <div class="carousel-inner">
+                            <?php foreach($images as $i => $imgEntry): ?>
+                                <div class="carousel-item <?= ($i === $initialIndex) ? 'active' : '' ?>">
+                                    <img src="<?= htmlspecialchars($imgEntry['src'], ENT_QUOTES, 'UTF-8') ?>" class="d-block product-image" alt="Product image">
+                                </div>
+                            <?php endforeach; ?>
+                            <?php if(empty($images)): ?>
+                                <div class="carousel-item active">
+                                    <img src="<?= $displayImgPath ?>" class="d-block product-image" alt="Product image">
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                        <button class="carousel-control-prev" type="button" data-bs-target="#productCarousel" data-bs-slide="prev"><span class="carousel-control-prev-icon"></span></button>
+                        <button class="carousel-control-next" type="button" data-bs-target="#productCarousel" data-bs-slide="next"><span class="carousel-control-next-icon"></span></button>
                     </div>
-                    <button class="carousel-control-prev" type="button" data-bs-target="#productCarousel" data-bs-slide="prev">
-                        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                    </button>
-                    <button class="carousel-control-next" type="button" data-bs-target="#productCarousel" data-bs-slide="next">
-                        <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                    </button>
                 </div>
             </div>
-        </div>
 
-        <!-- RIGHT: DETAILS -->
-        <div class="space-y-4">
+            <div class="space-y-4">
+                <h1 class="text-3xl font-semibold text-gray-800"><?= htmlspecialchars($product['name']); ?></h1>
+                <p class="text-gray-600 text-sm"><?= nl2br($product['description']); ?></p>
 
-            <!-- NAME -->
-            <h1 class="text-3xl font-semibold text-gray-800">
-                <?= htmlspecialchars($product['name']); ?>
-            </h1>
-
-            <!-- BRAND + CATEGORY -->
-            <!-- <p class="text-gray-600 text-sm">Brand: 
-                <span class="font-semibold text-gray-700"><?= htmlspecialchars($brandName); ?></span>
-            </p>
-
-            <p class="text-gray-600 text-sm">Category: 
-                <span class="font-semibold text-gray-700"><?= htmlspecialchars($categoryName); ?></span>
-            </p> -->
-                 <p class="text-gray-600 text-sm"><?= nl2br($product['description']); ?></p>
-
-            <!-- PRICE SECTION -->
-            <div class="flex items-center gap-3">
-                <span class="text-3xl font-bold text-green-600">
-                    ₹<?= number_format($simpleDiscountedPrice); ?>
-                </span>
-
-                <?php if ($discountRate > 0): ?>
-                <span class="text-gray-500 line-through text-lg">
-                    ₹<?= number_format($grossPrice); ?>
-                </span>
-                <span class="px-2 py-1 bg-green-700 text-white text-xs rounded">
-                    <?= $discountRate; ?>% OFF
-                </span>
+                <?php if (!empty($variants)): ?>
+                <div class="mt-4">
+                    <p class="text-sm font-semibold mb-2">Select Size / Weight:</p>
+                    <div class="variant-grid">
+                        <?php foreach ($variants as $index => $v): ?>
+                        <div class="variant-box <?= $index === 0 ? 'active' : '' ?>"
+                            data-id="<?= $v['id'] ?>"
+                            data-price="<?= $v['price'] ?>"
+                            data-discount="<?= $v['discount'] ?>"
+                            data-stock="<?= $v['stock'] ?>"
+                            data-name="<?= rtrim($v['weight_value'], '0.') . $v['weight_unit'] ?>"
+                            data-weight-value="<?= htmlspecialchars($v['weight_value']) ?>"
+                            data-weight-unit="<?= htmlspecialchars($v['weight_unit']) ?>"
+                        >
+                            <div class="variant-weight"><?= rtrim($v['weight_value'], '0.') . $v['weight_unit'] ?></div>
+                            <div class="variant-price">₹<?= number_format($v['price'] * (1 - $v['discount']/100)) ?></div>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
                 <?php endif; ?>
+
+                <div class="flex items-center gap-3">
+                    <span id="sellPrice" class="text-3xl font-bold text-green-600">₹<?= number_format($simpleDiscountedPrice); ?></span>
+                    <?php if ($discountRate > 0): ?>
+                        <span id="oldPrice" class="text-gray-500 line-through text-lg">₹<?= number_format($grossPrice); ?></span>
+                        <span id="discountBadge" class="px-2 py-1 bg-green-700 text-white text-xs rounded"><?= $discountRate; ?>% OFF</span>
+                    <?php endif; ?>
+                </div>
+                <div id="selectedVariantInfo" class="text-sm text-gray-700 mt-2">
+                    <!-- Selected variant details will appear here -->
+                    <span id="sv-name"><?= htmlspecialchars(rtrim($defaultVariant['weight_value'] ?? '', '0.') . ($defaultVariant['weight_unit'] ?? '')) ?></span>
+                    &nbsp;|&nbsp;
+                    <span id="sv-price">₹<?= number_format($simpleDiscountedPrice); ?></span>
+                    <?php if ($discountRate > 0): ?>
+                        &nbsp;|&nbsp;<span id="sv-discount"><?= $discountRate; ?>% OFF</span>
+                    <?php endif; ?>
+                </div>
+
+                <p class="text-sm mt-1">
+                    <span class="font-semibold">Stock:</span>
+                    <span id="stockText" class="<?= $stockQty > 0 ? 'text-green-600' : 'text-red-600' ?>">
+                        <?= $stockQty > 0 ? 'Available' : 'Out of stock' ?>
+                    </span>
+                </p>
+
+                <div>
+                    <p class="text-sm font-semibold mb-1">Choose Quantity:</p>
+                    <div class="flex items-center w-32 border rounded-lg shadow-sm bg-gray-50">
+                        <button onclick="adjust(-1)" class="px-3 py-2 text-lg font-bold hover:bg-gray-200">−</button>
+                        <input id="qty" type="number" value="1" min="1" class="w-full text-center border-x py-2">
+                        <button onclick="adjust(1)" class="px-3 py-2 text-lg font-bold hover:bg-gray-200">+</button>
+                    </div>
+                </div>
+
+                <button onclick="sendToCart()" class="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-lg">
+                    Add to Cart <i class="fas fa-shopping-cart ml-2"></i>
+                </button>
             </div>
+        </div>
 
-            <!-- STOCK -->
-            <p class="text-sm">
-                <span class="font-semibold">Stock:</span> 
-                <?= $product['stock'] > 0 ? '<span class="text-green-600">Available</span>' : '<span class="text-red-600">Out of stock</span>' ?>
-            </p>
+        <div class="mt-12 space-y-10">
 
-            <!-- QUANTITY -->
-            <div>
-                <p class="text-sm font-semibold mb-1">Choose Quantity:</p>
-
-                <div class="flex items-center w-32 border rounded-lg shadow-sm bg-gray-50">
-                    <button onclick="adjust(-1)" 
-                        class="px-3 py-2 text-lg font-bold hover:bg-gray-200">−</button>
-
-                    <input id="qty" type="number" value="1" min="1"
-                        class="w-full text-center border-x py-2">
-
-                    <button onclick="adjust(1)" 
-                        class="px-3 py-2 text-lg font-bold hover:bg-gray-200">+</button>
+            <div class="p-6 bg-gradient-to-br from-white to-green-50 rounded-2xl border border-green-100 shadow-md">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4">Product Details</h2>
+                  <?php if(!empty($product['nutrition'])): ?>
+          
+            <?php endif; ?>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 text-gray-800">
+                    <?php 
+                    $fields = [
+                        'Nutritional Info' => $product['nutrition'],
+                        'Origin' => $product['origin'], 
+                        'Grade' => $product['grade'], 
+                        'Packaging Type' => $product['packaging_type'],
+                    'Product Form'   => $product['product_form'],
+                        'Purity' => $product['purity'],
+                        'Flavor' => $product['flavor'], 
+                        'Shelf Life' => $product['shelf_life'], 
+                        'Storage' => $product['storage_instructions'], 
+                        'Expiry' => $product['expiry_info']
+                    ];
+                    foreach($fields as $label => $val): if($val): ?>
+                    <div>
+                        <p class="text-sm text-gray-500"><?= $label ?></p>
+                        <p class="text-lg font-semibold pl-3"><?= htmlspecialchars($val); ?></p>
+                    </div>
+                    <?php endif; endforeach; ?>
                 </div>
             </div>
-
-            <!-- ADD TO CART -->
-            <button onclick="sendToCart()"
-                class="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-lg">
-                Add to Cart <i class="fas fa-shopping-cart ml-2"></i>
-            </button>
-
         </div>
     </div>
 
-    <!-- FULL DETAILS SECTION -->
-<div class="mt-12 space-y-10">
+    <?php require_once $_SERVER["DOCUMENT_ROOT"] ."/includes/footer.php"; ?>
 
-    <!-- DESCRIPTION -->
-    <?php if(!empty($product['description'])): ?>
-    <div class="p-6 bg-gradient-to-br from-white to-blue-50 rounded-2xl border border-blue-100 shadow-md">
-        <h2 class="text-xl font-semibold text-gray-900 mb-3">Description</h2>
-        <p class="text-gray-700 leading-relaxed"><?= nl2br($product['description']); ?></p>
-    </div>
-    <?php endif; ?>
-
-    <!-- NUTRITION -->
-    <?php if(!empty($product['nutrition'])): ?>
-    <div class="p-6 bg-gradient-to-br from-white to-green-50 rounded-2xl border border-green-100 shadow-md">
-        <h2 class="text-xl font-semibold text-gray-900 mb-3">Nutritional Information</h2>
-        <p class="text-gray-700 leading-relaxed"><?= nl2br($product['nutrition']); ?></p>
-    </div>
-    <?php endif; ?>
-
-
-    <!-- PRODUCT DETAILS -->
-    <div class="p-6 bg-gradient-to-br from-white to-green-50 rounded-2xl border border-green-100 shadow-md">
-        <h2 class="text-xl font-semibold text-gray-900 mb-4">Product Details</h2>
-<div class="grid grid-cols-1 sm:grid-cols-2 gap-6 text-gray-800">
-
-    <?php if($product['weight']): ?>
-    <div >
-        <p class="text-sm text-gray-500">Weight</p>
-        <p class="text-lg font-semibold pl-3"><?= htmlspecialchars($product['weight']); ?></p>
-    </div>
-    <?php endif; ?>
-
-    <?php if($product['packaging_type']): ?>
-    <div >
-        <p class="text-sm text-gray-500">Packaging</p>
-        <p class="text-lg font-semibold pl-3"><?= htmlspecialchars($product['packaging_type']); ?></p>
-    </div>
-    <?php endif; ?>
-
-    <?php if($product['product_form']): ?>
-    <div >
-        <p class="text-sm text-gray-500">Form</p>
-        <p class="text-lg font-semibold pl-3"><?= htmlspecialchars($product['product_form']); ?></p>
-    </div>
-    <?php endif; ?>
-
-    <?php if($product['origin']): ?>
-    <div >
-        <p class="text-sm text-gray-500">Origin</p>
-        <p class="text-lg font-semibold pl-3"><?= htmlspecialchars($product['origin']); ?></p>
-    </div>
-    <?php endif; ?>
-
-    <?php if($product['grade']): ?>
-    <div >
-        <p class="text-sm text-gray-500">Grade</p>
-        <p class="text-lg font-semibold pl-3"><?= htmlspecialchars($product['grade']); ?></p>
-    </div>
-    <?php endif; ?>
-
-    <?php if($product['purity']): ?>
-    <div >
-        <p class="text-sm text-gray-500">Purity</p>
-        <p class="text-lg font-semibold pl-3"><?= htmlspecialchars($product['purity']); ?></p>
-    </div>
-    <?php endif; ?>
-
-    <?php if($product['flavor']): ?>
-    <div >
-        <p class="text-sm text-gray-500">Flavor</p>
-        <p class="text-lg font-semibold pl-3"><?= htmlspecialchars($product['flavor']); ?></p>
-    </div>
-    <?php endif; ?>
-
-    <?php if($product['shelf_life']): ?>
-    <div >
-        <p class="text-sm text-gray-500">Shelf Life</p>
-        <p class="text-lg font-semibold pl-3"><?= htmlspecialchars($product['shelf_life']); ?></p>
-    </div>
-    <?php endif; ?>
-
-    <?php if($product['storage_instructions']): ?>
-    <div >
-        <p class="text-sm text-gray-500">Storage</p>
-        <p class="text-lg font-semibold pl-3"><?= htmlspecialchars($product['storage_instructions']); ?></p>
-    </div>
-    <?php endif; ?>
-
-    <?php if($product['expiry_info']): ?>
-    <div >
-        <p class="text-sm text-gray-500">Expiry</p>
-        <p class="text-lg font-semibold pl-3"><?= htmlspecialchars($product['expiry_info']); ?></p>
-    </div>
-    <?php endif; ?>
-
-</div>
-
-
-    </div>
-
-</div>
-
-
-
-</div>
-
-<script>
-function adjust(val) {
-    let qty = document.getElementById("qty");
-    qty.value = Math.max(1, parseInt(qty.value) + val);
-}
-
-const PRODUCT_DATA = {
-    id: <?= $id; ?>,
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+  const PRODUCT_DATA = {
+    id: <?= (int)$id; ?>,
     name: "<?= addslashes($product['name']); ?>",
-    oldamt: <?= $grossPrice; ?>,  
-    discountRate: <?= $discountRate; ?>,
-    gstRate: <?= $gstRate ?? 0 ?>,
-    price: <?= $simpleDiscountedPrice; ?>, 
-    image: "<?= $mainImageSrc; ?>"
+    oldamt: <?= (float)$grossPrice; ?>,
+    discountRate: <?= (float)$discountRate; ?>,
+    gstRate: <?= (float)($gstRate ?? 0); ?>,
+    price: <?= (float)$simpleDiscountedPrice; ?>, // This will store the price for 1 unit
+    image: "<?= $mainImageSrc; ?>",
+    variant_id: <?= (int)$variantId; ?>,
+    variant_price: <?= (float)$simpleDiscountedPrice; ?>,
+    variant_weight: "<?= htmlspecialchars($defaultVariant['weight_value'] ?? '') ?>",
+    variant_unit: "<?= htmlspecialchars($defaultVariant['weight_unit'] ?? '') ?>"
 };
 
-function sendToCart() {
-    const quantity = parseInt(document.getElementById("qty").value) || 1;
-
-    addToCart({
-        ...PRODUCT_DATA,
-        quantity: quantity
-    });
-}
-</script>
-  <?php require_once $_SERVER["DOCUMENT_ROOT"] ."/includes/footer.php"; ?>
+function adjust(val) {
+    let qtyInput = document.getElementById("qty");
+    let currentQty = parseInt(qtyInput.value) || 1;
+    qtyInput.value = Math.max(1, currentQty + val);
     
-    <div id="toast-container"></div>
-    <!-- Bootstrap JS (bundle includes Popper) -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <style>
-    .thumb-box { position:relative; cursor:pointer; border:2px solid #e5e7eb; border-radius:6px; width:100px; height:100px; overflow:hidden; display:flex; align-items:center; justify-content:center; }
-    .thumb-box img { width:100%; height:100%; object-fit:cover; border-radius:6px; display:block; }
-    .thumb-box.selected { border-color: #16a34a; box-shadow:0 0 0 3px rgba(16,185,129,0.12); }
+    updateDisplayPrice(); // Trigger price update
+}
 
-    /* Layout: on small screens, stack main image above and show thumbnails horizontally below */
-    .image-area { display:flex; gap:1rem; align-items:flex-start; }
-    .thumbs { flex: 0 0 auto; }
-    .product-main { flex:1 1 auto; }
+// Also trigger update if user types manually in the input
+document.getElementById("qty").addEventListener('input', updateDisplayPrice);
 
-    /* Desktop: main image fixed at 500x500 and vertical thumb column with scrollbar */
-    @media (min-width: 768px) {
-        .product-main { width:500px; height:500px; background:#fff; border-radius:12px; padding:10px;border:1px solid #e5e7eb;  }
-        /* Ensure carousel container honors height so images center properly (subtract padding) */
-        .product-main .carousel, .product-main .carousel-inner, .product-main .carousel-item { height:480px; }
-        .product-main .product-image { width:100%; height:100%; object-fit:contain; display:block; margin:0 auto; }
+function updateDisplayPrice() {
+    const qty = parseInt(document.getElementById("qty").value) || 1;
+    const unitPrice = PRODUCT_DATA.price; 
+    const unitOldPrice = PRODUCT_DATA.oldamt;
 
-        .thumbs { min-width:120px; max-height:520px; overflow-y:auto; padding-right:6px; }
-        .thumbs .thumb-box { width:90px; height:90px; margin-bottom:8px; }
-        /* Narrow but visible scrollbar */
-        .thumbs::-webkit-scrollbar { width:8px; }
-        .thumbs::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius:4px; }
+    const totalSellPrice = unitPrice * qty;
+    const totalOldPrice = unitOldPrice * qty;
+
+    // Update the UI
+    document.getElementById('sellPrice').innerText = '₹' + totalSellPrice.toLocaleString();
+    
+    const oldPriceEl = document.getElementById('oldPrice');
+    if (oldPriceEl && PRODUCT_DATA.discountRate > 0) {
+        oldPriceEl.innerText = '₹' + totalOldPrice.toLocaleString();
     }
 
-    /* Mobile: stack vertically and make thumbs horizontal scrollable below */
-    @media (max-width: 767px) {
-        .image-area { flex-direction: column; }
-        .thumbs { width:100%; display:flex; flex-direction:row; gap:0.5rem; overflow-x:auto; padding:0.5rem 0; }
-        .thumbs .thumb-box { width:70px; height:70px; flex:0 0 auto; }
-        .product-main  { width:100%; height:auto; max-height:350px; }
+    // Update selected variant information summary
+    updateSelectedVariantInfo();
+}
+
+function updateSelectedVariantInfo() {
+    const nameEl = document.getElementById('sv-name');
+    const priceEl = document.getElementById('sv-price');
+    const discountEl = document.getElementById('sv-discount');
+
+    if (nameEl) nameEl.innerText = PRODUCT_DATA.variant_weight ? PRODUCT_DATA.variant_weight + (PRODUCT_DATA.variant_unit ? ' ' + PRODUCT_DATA.variant_unit : '') : '';
+    if (priceEl) priceEl.innerText = '₹' + (PRODUCT_DATA.variant_price ?? PRODUCT_DATA.price).toLocaleString();
+    if (discountEl) {
+        if (PRODUCT_DATA.discountRate && PRODUCT_DATA.discountRate > 0) {
+            discountEl.innerText = PRODUCT_DATA.discountRate + '% OFF';
+            discountEl.style.display = 'inline';
+        } else {
+            discountEl.style.display = 'none';
+        }
+    }
+}
+    function sendToCart() {
+        const quantity = parseInt(document.getElementById("qty").value) || 1;
+        console.log('sendToCart - adding to cart', {
+            id: PRODUCT_DATA.id ?? PRODUCT_DATA.item_id ?? null,
+            variant_id: PRODUCT_DATA.variant_id ?? null,
+            variant_price: PRODUCT_DATA.variant_price ?? PRODUCT_DATA.price ?? null,
+            variant_weight: PRODUCT_DATA.variant_weight ?? null,
+            variant_unit: PRODUCT_DATA.variant_unit ?? null,
+            quantity
+        });
+        addToCart({ ...PRODUCT_DATA, quantity: quantity });
     }
 
-    /* Minimal fallback for carousel visibility if Bootstrap CSS fails to load */
-    .carousel-item { display: none; }
-    .carousel-item.active { display: block; }
+    // Carousel Sync Logic
+    const carouselEl = document.getElementById('productCarousel');
+    const bsCarousel = new bootstrap.Carousel(carouselEl, { interval: false });
+    const thumbs = document.querySelectorAll('#thumbsColumn .thumb-box');
 
-    /* Carousel control styling: rounded dark translucent background and vertically centered left/right inside the product panel */
-    .product-main .carousel { position: relative; }
-    .product-main .carousel-control-prev,
-    .product-main .carousel-control-next {
-        position: absolute; top: 50%; transform: translateY(-50%); width:44px; height:44px; border-radius:50%; background: rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; box-shadow: 0 6px 18px rgba(0,0,0,0.18); border: none; opacity:1; transition: transform .15s ease, background .15s ease, box-shadow .15s ease; z-index:20;
-    }
-    .product-main .carousel-control-prev { left: 10px; right: auto; }
-    .product-main .carousel-control-next { right: 10px; left: auto; }
-    .product-main .carousel-control-prev:hover,
-    .product-main .carousel-control-next:hover,
-    .product-main .carousel-control-prev:focus,
-    .product-main .carousel-control-next:focus {
-        transform: translateY(-50%) scale(1.03); box-shadow: 0 10px 30px rgba(0,0,0,0.22); background: rgba(0,0,0,0.5);
-    }
-    .product-main .carousel-control-prev-icon, .product-main .carousel-control-next-icon { background-size: 20px 20px; filter: none; }
+    thumbs.forEach((t, i) => {
+        t.addEventListener('click', () => {
+            bsCarousel.to(i);
+            thumbs.forEach(x => x.classList.remove('selected'));
+            t.classList.add('selected');
+        });
+    });
 
-    /* Thumbnails (carousel indicators) appearance: rounded, subtle shadow and background */
-    .thumb-box { background: #fff; border-radius:12px; box-shadow: 0 6px 18px rgba(0,0,0,0.06); transition: box-shadow .15s ease, transform .12s ease; }
-    .thumb-box:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(0,0,0,0.12); }
+    // Variant Update Logic
+document.querySelectorAll('.variant-box').forEach(box => {
+    box.addEventListener('click', () => {
+        document.querySelectorAll('.variant-box').forEach(b => b.classList.remove('active'));
+        box.classList.add('active');
 
-    </style>
-    <script>
-    (function(){
-        const thumbs = Array.from(document.querySelectorAll('#thumbsColumn .thumb-box'));
-        const carouselEl = document.getElementById('productCarousel');
-        if (!carouselEl) return;
+        const price = parseFloat(box.dataset.price);
+        const discount = parseFloat(box.dataset.discount);
+        const stock = parseInt(box.dataset.stock);
+        const finalUnitPrice = Math.round(price * (1 - discount / 100));
 
-        // Initialize Bootstrap carousel with no auto-ride
-        const bsCarousel = new bootstrap.Carousel(carouselEl, { interval: false });
+        // Update the Global Object with the NEW unit price and variant info
+        PRODUCT_DATA.price = finalUnitPrice;
+        PRODUCT_DATA.oldamt = price;
+        PRODUCT_DATA.discountRate = discount;
+        PRODUCT_DATA.variant_id = box.dataset.id;
+        PRODUCT_DATA.variant_price = finalUnitPrice;
+        PRODUCT_DATA.variant_weight = box.dataset.weightValue || box.dataset.weight_value || '';
+        PRODUCT_DATA.variant_unit = box.dataset.weightUnit || box.dataset.weight_unit || '';
 
-        const carouselItems = Array.from(carouselEl.querySelectorAll('.carousel-item'));
-        const initialIndex = <?= intval($initialIndex ?? 0) ?>;
 
-        // Do not mark any thumbnail as "selected" on initial load; selection appears after user interaction or carousel navigation.
+        // Update Stock UI
+        const stockText = document.getElementById('stockText');
+        stockText.innerText = stock > 0 ? 'Available' : 'Out of stock';
+        stockText.className = stock > 0 ? 'text-green-600' : 'text-red-600';
 
-        // When carousel slides, update thumbnail selection
-        carouselEl.addEventListener('slid.bs.carousel', function(e) {
-            const active = carouselEl.querySelector('.carousel-item.active');
-            const idx = carouselItems.indexOf(active);
-            thumbs.forEach(t => t.classList.remove('selected'));
-            if (thumbs[idx]) {
-                thumbs[idx].classList.add('selected');
-                try { thumbs[idx].scrollIntoView({behavior:'smooth', inline:'center', block:'nearest'}); } catch(err){}
+        // Update Discount Badge
+        const discountBadge = document.getElementById('discountBadge');
+        if(discountBadge) {
+            if(discount > 0) {
+                discountBadge.innerText = discount + '% OFF';
+                discountBadge.style.display = 'inline';
+            } else {
+                discountBadge.style.display = 'none';
             }
-        });
+        }
 
-        // Clicking a thumbnail uses Bootstrap data attributes to change slide; also provide immediate feedback
-        thumbs.forEach((t, i) => {
-            t.addEventListener('click', function() {
-                bsCarousel.to(i);
-                thumbs.forEach(x => x.classList.remove('selected'));
-                t.classList.add('selected');
-                try { t.scrollIntoView({behavior:'smooth', inline:'center', block:'nearest'}); } catch(err){}
-            });
+        // Final Step: Refresh the total price based on existing quantity
+        updateDisplayPrice();
+        console.log('variant selected', {
+            variant_id: PRODUCT_DATA.variant_id ?? null,
+            variant_price: PRODUCT_DATA.variant_price ?? PRODUCT_DATA.price ?? null,
+            variant_weight: PRODUCT_DATA.variant_weight ?? null,
+            variant_unit: PRODUCT_DATA.variant_unit ?? null
         });
-
-        // Ensure initial carousel slide is correct
-        bsCarousel.to(initialIndex);
-    })();
+    });
+});
     </script>
+
+     <div id="toast-container"></div>
 </body>
 </html>

@@ -42,12 +42,39 @@ if (!$order) {
    FETCH ORDER ITEMS
 -----------------------------------------------------*/
 
-$item_sql = "
-    SELECT oi.*, it.name AS item_name 
-    FROM order_items oi
-    JOIN items it ON oi.item_id = it.id
-    WHERE oi.order_id = :id
-";
+// Fetch items with optional variant info (schema-safe)
+$dbName = $_ENV['DB_NAME'] ?? $conn->query('select database()')->fetchColumn();
+$colsStmt = $conn->prepare("SELECT column_name FROM information_schema.columns WHERE table_schema = ? AND table_name = 'order_items'");
+$colsStmt->execute([$dbName]);
+$cols = $colsStmt->fetchAll(PDO::FETCH_COLUMN);
+$hasVariantId = in_array('variant_id', $cols);
+
+if ($hasVariantId) {
+    $item_sql = "
+        SELECT oi.*, it.name AS item_name,
+               v.weight_value AS variant_weight,
+               v.weight_unit AS variant_unit,
+               v.price AS variant_price,
+               v.old_price AS variant_old_price,
+               v.discount AS variant_discount
+        FROM order_items oi
+        JOIN items it ON oi.item_id = it.id
+        LEFT JOIN item_variants v ON oi.variant_id = v.id
+        WHERE oi.order_id = :id
+    ";
+} else {
+    $item_sql = "
+        SELECT oi.*, it.name AS item_name,
+               NULL AS variant_weight,
+               NULL AS variant_unit,
+               NULL AS variant_price,
+               NULL AS variant_old_price,
+               NULL AS variant_discount
+        FROM order_items oi
+        JOIN items it ON oi.item_id = it.id
+        WHERE oi.order_id = :id
+    ";
+}
 
 $stmt_items = $conn->prepare($item_sql);
 $stmt_items->execute(['id' => $order_id]);
@@ -198,6 +225,7 @@ $pdfExists = file_exists($pdfPath);
                         <tr>
                             <th class="px-6 py-3">#</th>
                             <th class="px-6 py-3">Product</th>
+                            <th class="px-6 py-3">Variant</th>
                             <th class="px-6 py-3">Orig Price</th>
                             <th class="px-6 py-3">Discount %</th>
                             <th class="px-6 py-3">Final Price</th>
@@ -209,12 +237,15 @@ $pdfExists = file_exists($pdfPath);
                         <?php $i=1; $total=0; foreach($items as $it): $total += $it['amount']; ?>
                         <tr>
                             <td class="px-6 py-4"><?= $i++ ?></td>
-                            <td class="px-6 py-4"><?= $it['item_name'] ?></td>
-                            <td class="px-6 py-4">₹<?= $it['original_price'] ?></td>
+                            <td class="px-6 py-4">
+                                <?= $it['item_name'] ?>
+                                <?php if (!empty($it['variant_weight'])): ?><div class="text-sm text-gray-600">Variant: <?= htmlspecialchars($it['variant_weight']) ?> <?= htmlspecialchars($it['variant_unit']) ?></div><?php endif; ?>
+                            </td>
+                            <td class="px-6 py-4">₹<?= number_format($it['original_price'],2) ?></td>
                             <td class="px-6 py-4"><?= $it['discount_percentage'] ?>%</td>
-                            <td class="px-6 py-4">₹<?= $it['discounted_price'] ?></td>
+                            <td class="px-6 py-4">₹<?= number_format($it['variant_price'] ?? $it['discounted_price'] ?? 0,2) ?></td>
                             <td class="px-6 py-4"><?= $it['quantity'] ?></td>
-                            <td class="px-6 py-4 font-semibold">₹<?= $it['amount'] ?></td>
+                            <td class="px-6 py-4 font-semibold">₹<?= number_format($it['amount'],2) ?></td>
                         </tr>
                         <?php endforeach; ?>
                         <tr class="bg-gray-100 font-semibold">

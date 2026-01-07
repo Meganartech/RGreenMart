@@ -622,48 +622,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['single_upload'])) {
 
     /* -------------------- VARIANT UI: add/remove rows + discount calculation -------------------- */
 
-    function computeVariantDiscount(row) {
-        const priceEl = row.querySelector('input[name="variant_price[]"]');
-        const oldEl = row.querySelector('input[name="variant_old_price[]"]');
-        const discountEl = row.querySelector('input[name="variant_discount[]"]');
+ function computeVariantDiscount(row) {
+    // Select inputs specifically within this row
+    const priceInput = row.querySelector('input[name="variant_price[]"]');
+    const oldPriceInput = row.querySelector('input[name="variant_old_price[]"]');
+    const discountInput = row.querySelector('input[name="variant_discount[]"]');
 
-        const price = parseFloat(priceEl?.value.replace(/,/g, '')) || 0;
-        const oldPriceRaw = oldEl?.value?.trim();
-        const oldPrice = oldPriceRaw ? parseFloat(oldPriceRaw.replace(/,/g, '')) : null;
+    const price = parseFloat(priceInput.value) || 0;
+    const oldPrice = parseFloat(oldPriceInput.value) || 0;
 
-        if (oldPrice && oldPrice > price && price > 0) {
-            const disc = ((oldPrice - price) / oldPrice) * 100;
-            discountEl.value = disc.toFixed(2);
-            discountEl.readOnly = true;
-        } else {
-            // No valid old price -> clear and make editable
-            if (discountEl) {
-                discountEl.value = '';
-                discountEl.readOnly = false;
-            }
-        }
+    if (oldPrice > price && price > 0) {
+        const percentage = ((oldPrice - price) / oldPrice) * 100;
+        // Display with 2 decimal places
+        discountInput.value = Math.round(percentage) + "%"; 
+    } else {
+        discountInput.value = "0%";
     }
+}
 function addVariantRow() {
-        const html = `
-        <div class="variant-row bg-gray-50 p-3 rounded-lg border relative">
-            <div class="grid grid-cols-3 gap-2">
-                <div class="col-span-2">
-                    <label class="text-[10px] uppercase font-bold text-gray-500">Weight</label>
-                    <div class="flex gap-1">
-                        <input type="number" step="0.01" name="variant_weight_value[]" required class="w-2/3 p-1.5 text-sm border rounded">
-                        <select name="variant_weight_unit[]" class="w-1/3 p-1.5 text-sm border rounded">
-                            <option value="g">g</option><option value="kg">kg</option><option value="ml">ml</option><option value="l">l</option><option value="pcs">pcs</option>
-                        </select>
-                    </div>
+    const html = `
+    <div class="variant-row bg-gray-50 p-3 rounded-lg border relative">
+        <div class="grid grid-cols-3 gap-2">
+            <div class="col-span-2">
+                <label class="text-[10px] uppercase font-bold text-gray-500">Weight</label>
+                <div class="flex gap-1">
+                    <input type="number" step="0.01" name="variant_weight_value[]" required class="w-2/3 p-1.5 text-sm border rounded">
+                    <select name="variant_weight_unit[]" class="w-1/3 p-1.5 text-sm border rounded">
+                        <option value="g">g</option><option value="kg">kg</option><option value="ml">ml</option><option value="l">l</option><option value="pcs">pcs</option>
+                    </select>
                 </div>
-                <div><label class="text-[10px] uppercase font-bold text-gray-500">Price</label><input type="number" step="0.01" name="variant_price[]" required class="w-full p-1.5 text-sm border rounded"></div>
-                <div><label class="text-[10px] uppercase font-bold text-gray-500">Old Price</label><input type="number" step="0.01" name="variant_old_price[]" class="w-full p-1.5 text-sm border rounded"></div>
-                <div><label class="text-[10px] uppercase font-bold text-gray-500">Stock</label><input type="number" name="variant_stock[]" value="0" class="w-full p-1.5 text-sm border rounded"></div>
             </div>
-            <button type="button" onclick="this.parentElement.remove()" class="absolute -top-2 -right-2 bg-red-500 text-white w-5 h-5 rounded-full text-xs">×</button>
-        </div>`;
-        document.getElementById("variantsContainer").insertAdjacentHTML('beforeend', html);
-    }
+            <div>
+                <label class="text-[10px] uppercase font-bold text-gray-500">Price</label>
+                <input type="number" step="0.01" name="variant_price[]" oninput="computeVariantDiscount(this.closest('.variant-row'))" required class="w-full p-1.5 text-sm border rounded">
+            </div>
+            <div>
+                <label class="text-[10px] uppercase font-bold text-gray-500">Old Price</label>
+                <input type="number" step="0.01" name="variant_old_price[]" oninput="computeVariantDiscount(this.closest('.variant-row'))" class="w-full p-1.5 text-sm border rounded">
+            </div>
+            <div>
+                <label class="text-[10px] uppercase font-bold text-gray-500">Discount%</label>
+                <input type="text" name="variant_discount[]" readonly class="w-full p-1.5 text-sm border rounded bg-gray-100">
+            </div>
+            <div>
+                <label class="text-[10px] uppercase font-bold text-gray-500">Stock</label>
+                <input type="number" name="variant_stock[]" value="0" class="w-full p-1.5 text-sm border rounded">
+            </div>
+        </div>
+        <button type="button" onclick="this.parentElement.remove()" class="absolute -top-2 -right-2 bg-red-500 text-white w-5 h-5 rounded-full text-xs">×</button>
+    </div>`;
+    document.getElementById("variantsContainer").insertAdjacentHTML('beforeend', html);
+}
 
 
       

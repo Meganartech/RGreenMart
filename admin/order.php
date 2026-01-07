@@ -9,6 +9,46 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
 
 require_once $_SERVER["DOCUMENT_ROOT"] . "/dbconf.php";
 
+// Build an items summary per order (safe: check if variant weight columns exist)
+$dbName = $_ENV['DB_NAME'] ?? $conn->query('select database()')->fetchColumn();
+$colsStmt = $conn->prepare("SELECT column_name FROM information_schema.columns WHERE table_schema = ? AND table_name = 'order_items'");
+$colsStmt->execute([$dbName]);
+$cols = $colsStmt->fetchAll(PDO::FETCH_COLUMN);
+$hasVariantWeightValue = in_array('variant_weight_value', $cols);
+$hasVariantWeightUnit = in_array('variant_weight_unit', $cols);
+
+// Subquery for items summary: product name, optional variant, qty, unit price and optional discount
+$hasVariantPrice = in_array('variant_price', $cols);
+$hasDiscount = in_array('discount_percentage', $cols) || in_array('discount', $cols);
+
+$hasVariantId = in_array('variant_id', $cols);
+if ($hasVariantId) {
+    $itemsSub = "(SELECT GROUP_CONCAT(CONCAT(i.name, ' (', COALESCE(v.weight_value, ''), ' ', COALESCE(v.weight_unit, ''), ')', ' x', oi.quantity, ' @ Rs ', FORMAT(COALESCE(";
+    if ($hasVariantPrice) {
+        $itemsSub .= "oi.variant_price, oi.discounted_price";
+    } else {
+        $itemsSub .= "oi.discounted_price, oi.original_price";
+    }
+    $itemsSub .= "),2)";
+    if ($hasDiscount) {
+        $itemsSub .= ", ' (', oi.discount_percentage, '% off)'";
+    }
+    $itemsSub .= ") SEPARATOR ' || ') FROM order_items oi JOIN items i ON i.id = oi.item_id LEFT JOIN item_variants v ON v.id = oi.variant_id WHERE oi.order_id = o.id) AS items_summary";
+} else {
+    // No variant_id on order_items — attempt to find matching variant by price using LEFT JOIN
+    // Build price expression without referencing oi.variant_price when not present
+    if ($hasVariantPrice) {
+        $priceExpr = "COALESCE(oi.variant_price, oi.discounted_price, oi.original_price)";
+    } else {
+        $priceExpr = "COALESCE(oi.discounted_price, oi.original_price)";
+    }
+    $itemsSub = "(SELECT GROUP_CONCAT(CONCAT(i.name, ' (', COALESCE(iv.weight_value, ''), ' ', COALESCE(iv.weight_unit, ''), ') x', oi.quantity, ' @ Rs ', FORMAT(" . $priceExpr . ",2)";
+    if ($hasDiscount) {
+        $itemsSub .= ", ' (', oi.discount_percentage, '% off)'";
+    }
+    $itemsSub .= ") SEPARATOR ' || ') FROM order_items oi JOIN items i ON i.id = oi.item_id LEFT JOIN item_variants iv ON iv.item_id = oi.item_id AND iv.price = " . $priceExpr . " WHERE oi.order_id = o.id) AS items_summary";
+}
+
 $sql = "
 SELECT 
     o.id,
@@ -25,7 +65,8 @@ SELECT
     u.mobile AS user_mobile,
 
     ua.contact_name,
-    ua.contact_mobile
+    ua.contact_mobile,
+    " . $itemsSub . "
 
 FROM orders o
 LEFT JOIN users u ON o.user_id = u.id
@@ -83,6 +124,7 @@ $billsDir = realpath(__DIR__ . '/../bills');
                                 <th class="p-3 text-left">Payment Status</th>
                                 <th class="p-3 text-left">Order Date</th>
                                 <th class="p-3 text-left">Enquiry No</th>
+                                <th class="p-3 text-left">Items</th>
                                 <th class="p-3 text-left">Actions</th>
                             </tr>
                         </thead>
@@ -134,6 +176,7 @@ $billsDir = realpath(__DIR__ . '/../bills');
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     <?= $order['order_date'] ?></td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><?= $enquiryNo ?></td>
+                                <td class="p-3 border-b text-sm text-gray-700"><?= htmlspecialchars(mb_strimwidth($order['items_summary'] ?? '-', 0, 120, '...')) ?></td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                                     <a href="view_order.php?id=<?= $order['id'] ?>"
                                         class="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">View</a>
@@ -224,7 +267,8 @@ fetch("/api/admin/cancel_order.php", {
             const rows = document.querySelectorAll('#ordersTable tbody tr');
             rows.forEach(row => {
                 const orderId = row.cells[0].textContent.toLowerCase();
-                const enquiryNo = row.cells[6].textContent.toLowerCase();
+                // Enquiry No is at cell index 7 (after adding Items column)
+                const enquiryNo = (row.cells[7] && row.cells[7].textContent || '').toLowerCase();
                 row.style.display = orderId.includes(filter) || enquiryNo.includes(filter) ?
                     '' : 'none';
             });

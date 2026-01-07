@@ -220,7 +220,9 @@ window.continueToPayment = async function() {
 
     let subtotal = 0;
     cart.forEach(item => {
-        subtotal += (parseFloat(item.price) || 0) * (parseInt(item.quantity) || 1);
+        const unit = parseFloat(item.variant_price ?? item.price) || 0;
+        const qty = parseInt(item.quantity ?? item.qty) || 1;
+        subtotal += unit * qty;
     });
 
     const packingPercent = 3;
