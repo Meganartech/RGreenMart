@@ -143,7 +143,14 @@ $variantWeightsSummary = implode(', ', array_keys($variantWeightsArr));
 .pending { background: linear-gradient(135deg, #fef08a, #eab308); color: #78350f; }
 .failed { background: linear-gradient(135deg, #fecaca, #dc2626); color: #7f1d1d; }
 .payment_badge:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
-</style>
+    /* Shipment badge styles */
+    .shipment_badge { display:inline-block; padding:6px 12px; border-radius:9999px; font-size:13px; font-weight:600; color:#fff; box-shadow:0 2px 6px rgba(0,0,0,0.08); }
+    .shipment_badge.not_shipped { background: linear-gradient(135deg,#e5e7eb,#9ca3af); color:#1f2937; }
+    .shipment_badge.shipped { background: linear-gradient(135deg,#bfdbfe,#3b82f6); }
+    .shipment_badge.in_transit { background: linear-gradient(135deg,#fde68a,#f59e0b); color:#78350f; }
+    .shipment_badge.delivered { background: linear-gradient(135deg,#a7f3d0,#22c55e); color:#065f46; }
+    .shipment_badge.cancelled { background: linear-gradient(135deg,#fecaca,#dc2626); color:#7f1d1d; }
+    .shipment_badge.error { background: linear-gradient(135deg,#fecaca,#f97316); color:#7f1d1d; }</style>
 </head>
 <body>
 <?php include "includes/header.php"; ?>
@@ -152,6 +159,86 @@ $variantWeightsSummary = implode(', ', array_keys($variantWeightsArr));
     <h1 class="text-3xl font-bold mb-6 text-green-800">Order #<?= $order['id'] ?></h1>
 
     <!-- Order Info -->
+    <?php
+    // Fetch shipment info if available
+    $stmtS = $conn->prepare('SELECT * FROM shipments WHERE order_id = ? LIMIT 1');
+    $stmtS->execute([$orderId]);
+    $shipment = $stmtS->fetch(PDO::FETCH_ASSOC);
+
+    // Best-effort: fetch live shipment details / tracking from Shiprocket for a richer UI
+    $liveShipment = null; // GET /shipments/{id}
+    $liveTracking = null; // track by AWB
+    $displayStatus = $shipment['status'] ?? null;
+    $latestEvent = null;
+    if ($shipment) {
+        try {
+            require_once __DIR__ . '/api/shiprocket.php';
+            $client = shiprocketClient();
+
+            if (!empty($shipment['shipment_id'])) {
+                try {
+                    $resp = $client->request('GET', '/shipments/' . urlencode($shipment['shipment_id']));
+                    $liveShipment = $resp;
+                    if (is_array($resp)) {
+                        if (!empty($resp['status'])) $displayStatus = $resp['status'];
+                        elseif (!empty($resp['data']['status'])) $displayStatus = $resp['data']['status'];
+                        elseif (!empty($resp['shipment']['status'])) $displayStatus = $resp['shipment']['status'];
+                    }
+                } catch (Throwable $e) {
+                    $liveShipment = ['error' => $e->getMessage()];
+                }
+            }
+
+            if (!empty($shipment['awb'])) {
+                try {
+                    $tr = $client->trackAwb($shipment['awb']);
+                    $liveTracking = $tr;
+                    // extract timeline / tracking events if available
+                    $events = [];
+                    $data = $tr['data'] ?? $tr;
+                    if (isset($data['trackings']) && is_array($data['trackings'])) {
+                        foreach ($data['trackings'] as $t) {
+                            if (isset($t['tracking_data']) && is_array($t['tracking_data'])) $events = array_merge($events, $t['tracking_data']);
+                            if (isset($t['tracking_details']) && is_array($t['tracking_details'])) $events = array_merge($events, $t['tracking_details']);
+                            if (isset($t['timeline']) && is_array($t['timeline'])) $events = array_merge($events, $t['timeline']);
+                        }
+                    } elseif (isset($data['tracking_data']) && is_array($data['tracking_data'])) {
+                        $events = $data['tracking_data'];
+                    } elseif (isset($data['data']) && is_array($data['data'])) {
+                        $events = $data['data'];
+                    }
+
+                    if (!empty($events)) {
+                        usort($events, function($a,$b){
+                            $ta = strtotime($a['date'] ?? $a['time'] ?? $a['datetime'] ?? $a['created_at'] ?? 0);
+                            $tb = strtotime($b['date'] ?? $b['time'] ?? $b['datetime'] ?? $b['created_at'] ?? 0);
+                            return $tb - $ta;
+                        });
+                        $latestEvent = $events[0];
+                        $displayStatus = $latestEvent['status'] ?? $latestEvent['title'] ?? $displayStatus;
+                    }
+                } catch (Throwable $e) {
+                    $liveTracking = ['error' => $e->getMessage()];
+                }
+            }
+        } catch (Throwable $e) {
+            // ignore failures and continue with stored info
+        }
+    }
+
+    // Classify badge color
+    $badgeClass = 'shipped';
+    if (!empty($displayStatus)) {
+        $k = strtolower($displayStatus);
+        if (strpos($k,'deliv') !== false || strpos($k,'delivered') !== false) $badgeClass = 'delivered';
+        elseif (strpos($k,'out for') !== false || strpos($k,'outfor') !== false || strpos($k,'out') !== false) $badgeClass = 'in_transit';
+        elseif (strpos($k,'transit') !== false) $badgeClass = 'in_transit';
+        elseif (strpos($k,'cancel') !== false) $badgeClass = 'cancelled';
+        elseif (strpos($k,'error') !== false || (!empty($liveShipment['error']) || !empty($liveTracking['error']))) $badgeClass = 'error';
+        else $badgeClass = 'shipped';
+    }
+    $displayStatus = $displayStatus ?? 'Unknown';
+    ?>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div class="space-y-2">
             <p><span class="font-semibold">Order Date:</span> <?= date("d M Y, h:i A", strtotime($order['order_date'])) ?></p>
@@ -177,6 +264,35 @@ $variantWeightsSummary = implode(', ', array_keys($variantWeightsArr));
               <p><span class="font-semibold">Order Status:</span> 
                 <span ><?= ucfirst($order['status']) ?></span>
             </p>
+
+            <?php if ($shipment): ?>
+                <div class="mt-4 p-3 bg-gray-50 rounded">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-semibold">Shipment</h3>
+                        <span class="shipment_badge <?= htmlspecialchars($badgeClass) ?>"><?= htmlspecialchars(ucfirst($displayStatus)) ?></span>
+                    </div>
+
+                    <div class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <p><strong>AWB:</strong> <?= htmlspecialchars($shipment['awb'] ?? '-') ?></p>
+                        <p><strong>Courier:</strong> <?= htmlspecialchars($shipment['courier_code'] ?? '-') ?></p>
+                    </div>
+
+                    <?php if (!empty($latestEvent)): ?>
+                        <div class="mt-3 p-3 bg-white rounded border">
+                            <div class="text-sm text-gray-700"><strong>Latest:</strong> <?= htmlspecialchars($latestEvent['description'] ?? $latestEvent['status'] ?? $latestEvent['title'] ?? '') ?></div>
+                            <div class="text-xs text-gray-500"><?= htmlspecialchars($latestEvent['date'] ?? $latestEvent['time'] ?? $latestEvent['datetime'] ?? '') ?></div>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if ($shipment['label_url']): ?>
+                        <p class="mt-2"><a href="<?= htmlspecialchars($shipment['label_url']) ?>" target="_blank" class="text-indigo-600">Open Label</a></p>
+                    <?php endif; ?>
+
+                    <p class="mt-2"><a href="/track_shipment.php?order_id=<?= $order['id'] ?>" class="text-indigo-600">View full tracking timeline</a></p>
+                </div>
+            <?php else: ?>
+                <div class="mt-4 p-3 bg-yellow-50 rounded">Not shipped yet</div>
+            <?php endif; ?>
             
   <?php if ($order['status'] === 'cancelled'): ?>
 <div class="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg space-y-2">
@@ -254,14 +370,14 @@ $variantWeightsSummary = implode(', ', array_keys($variantWeightsArr));
             </div>
         </div>
         <?php endforeach; ?>
+        
     </div>
 
     <!-- Totals -->
     <div class="mt-8 border-t pt-6 flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
         <div class="space-y-2">
             <p><span class="font-semibold">Subtotal:</span> ₹<?= number_format($order['subtotal'],2) ?></p>
-            <p><span class="font-semibold">Packing Charge:</span> ₹<?= number_format($order['packing_charge'],2) ?></p>
-            <p><span class="font-semibold">Net Total:</span> ₹<?= number_format($order['net_total'],2) ?></p>
+            <p><span class="font-semibold">Shipping Charge:</span> ₹<?= number_format($order['shipping_charge'],2) ?></p>
             <p class="text-xl font-bold"><span class="font-semibold">Overall Total:</span> ₹<?= number_format($order['overall_total'],2) ?></p>
             <?php if(!empty($order['coupon_code'])): ?>
             <p><span class="font-semibold">Coupon:</span> <?= htmlspecialchars($order['coupon_code']) ?> (-₹<?= number_format($order['coupon_discount_amount'],2) ?>)</p>

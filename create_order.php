@@ -46,8 +46,7 @@ try {
 
     // 3. GET TOTALS FROM FRONTEND (CORRECT FIX)
     $subtotal       = (float) ($data["subtotal"] ?? 0);
-    $packing_charge = (float) ($data["packing_charge"] ?? 0);
-    $net_total      = (float) ($data["net_total"] ?? 0);
+    $shippingcharge = (float) ($data["shipping_charge"] ?? 0);
     $overall_total  = (float) ($data["overall_total"] ?? 0);
 
     // Check minimum order amount from settings
@@ -61,19 +60,39 @@ try {
     }
 
     // 4. INSERT ORDER
-    $stmt = $conn->prepare("INSERT INTO orders 
-        (enquiry_no, user_id, address_id, subtotal, packing_charge, net_total, overall_total, status, created_at) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', NOW())");
+$stmt = $conn->prepare("
+    INSERT INTO orders (
+        enquiry_no,
+        user_id,
+        address_id,
+        subtotal,
+        shipping_charge,
+        overall_total,
+         courier_company_id,
+        courier_name,
+        estimated_delivery_days,
+        etd,
+        status,
+        created_at
+    ) VALUES (
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,  'pending', NOW()
+    )
+");
 
-    $stmt->execute([
-        $enquiryNumber,
-        $user_id,
-        $address_id,
-        $subtotal,
-        $packing_charge,
-        $net_total,
-        $overall_total
-    ]);
+$stmt->execute([
+    $enquiryNumber,
+    $user_id,
+    $address_id,
+    $subtotal,
+    $data['shipping_charge'] ?? 0,                
+    $overall_total,
+    $data['courier_company_id'] ?? null,
+    $data['courier_name'] ?? null,
+    $data['courier_eta'] ?? null,
+    $data['courier_etd'] ?? null
+]);
+
+
 
     $orderId = $conn->lastInsertId();
 

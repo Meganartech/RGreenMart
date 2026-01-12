@@ -80,7 +80,8 @@ try {
         SET 
             payment_status='paid', 
             razorpay_payment_id=?, 
-            razorpay_signature=? 
+            razorpay_signature=? ,
+            status='ordered'
         WHERE id=?
     ")->execute([$paymentId, $signature, $orderId]);
 

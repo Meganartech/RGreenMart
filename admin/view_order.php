@@ -165,8 +165,7 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
                 <!-- Totals -->
                 <h3 class="text-xl font-semibold mt-6 mb-2 text-gray-800">Bill Summary</h3>
                 <p><span class="font-semibold">Subtotal:</span> ₹<?= $order['subtotal'] ?></p>
-                <p><span class="font-semibold">Packing Charge:</span> ₹<?= $order['packing_charge'] ?></p>
-                <p><span class="font-semibold">Net Total:</span> ₹<?= $order['net_total'] ?></p>
+                <p><span class="font-semibold">Shipping Charge:</span> ₹<?= $order['shipping_charge'] ?></p>
                 <p><span class="font-semibold">Overall Total:</span> ₹<?= $order['overall_total'] ?></p>
 
                 <?php if ($order['coupon_code']): ?>

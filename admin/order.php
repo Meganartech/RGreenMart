@@ -120,8 +120,8 @@ $billsDir = realpath(__DIR__ . '/../bills');
                                 <th class="p-3 text-left">Name</th>
                                 <th class="p-3 text-left">Mobile</th>
                                 <th class="p-3 text-left">Overall Total (₹)</th>
-                                <th class="p-3 text-left">Order Status</th>
                                 <th class="p-3 text-left">Payment Status</th>
+                                <th class="p-3 text-left">Order Status</th>
                                 <th class="p-3 text-left">Order Date</th>
                                 <th class="p-3 text-left">Enquiry No</th>
                                 <th class="p-3 text-left">Items</th>
@@ -188,6 +188,11 @@ $billsDir = realpath(__DIR__ . '/../bills');
                                     </button>
                                     <?php endif; ?>
 
+                                    <!-- Shiprocket actions -->
+                                    <button onclick="createShipment(<?= $order['id'] ?>, this)" class="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">Create Shipment</button>
+
+                                    <button onclick="viewShipment(<?= $order['id'] ?>)" class="px-3 py-1 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition">View Shipment</button>
+
                                     <?php if ($pdfExists): ?>
                                     <a href="../bills/estimate_<?= $enquiryNo ?>.pdf" target="_blank"
                                         class="px-3 py-1 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition">Open</a>
@@ -218,6 +223,17 @@ $billsDir = realpath(__DIR__ . '/../bills');
         <div class="text-right mt-4">
             <button onclick="closeAdminCancelModal()" class="px-3 py-1 bg-gray-400 text-white rounded">Close</button>
             <button onclick="confirmAdminCancelOrder()" class="px-3 py-1 bg-red-600 text-white rounded">Cancel Order</button>
+        </div>
+    </div>
+</div>
+
+<!-- Shipment Modal -->
+<div id="shipmentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center">
+    <div class="bg-white p-6 rounded-lg w-11/12 max-w-3xl shadow-lg">
+        <h2 class="text-xl font-bold mb-4">Shipment Details</h2>
+        <div id="shipmentContent" class="space-y-2 text-sm text-gray-700"></div>
+        <div class="text-right mt-4">
+            <button onclick="closeShipmentModal()" class="px-3 py-1 bg-gray-400 text-white rounded">Close</button>
         </div>
     </div>
 </div>
@@ -274,6 +290,65 @@ fetch("/api/admin/cancel_order.php", {
             });
         });
     });
+
+    // Shiprocket: create shipment and view
+    function createShipment(orderId, btn) {
+        if (!confirm('Create shipment for order #' + orderId + '?')) return;
+        btn.disabled = true;
+        const orig = btn.innerText;
+        btn.innerText = 'Creating...';
+        fetch('/api/admin/create_shipment.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'order_id=' + encodeURIComponent(orderId)
+        }).then(r => r.json()).then(data => {
+            btn.disabled = false;
+            btn.innerText = orig;
+            if (data.success) {
+                alert('Shipment created. AWB: ' + (data.awb || 'N/A'));
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+                console.log(data);
+            }
+        }).catch(err => {
+            console.error(err);
+            btn.disabled = false;
+            btn.innerText = orig;
+            alert('Network error');
+        });
+    }
+
+    function viewShipment(orderId) {
+        document.getElementById('shipmentContent').innerHTML = 'Loading...';
+        document.getElementById('shipmentModal').classList.remove('hidden');
+        fetch('/api/admin/get_shipment.php?order_id=' + encodeURIComponent(orderId))
+            .then(r => r.json()).then(data => {
+                if (!data.success) {
+                    document.getElementById('shipmentContent').innerText = data.message || 'No shipment';
+                    return;
+                }
+                const s = data.shipment;
+                let html = '';
+                html += '<div><strong>AWB:</strong> ' + (s.awb || '-') + '</div>';
+                html += '<div><strong>Courier:</strong> ' + (s.courier_code || '-') + '</div>';
+                html += '<div><strong>Status:</strong> ' + (s.status || '-') + '</div>';
+                html += '<div><strong>Label:</strong> ' + (s.label_url ? ('<a href="' + s.label_url + '" target="_blank">Open</a>') : '-') + '</div>';
+                html += '<div><strong>Tracking history:</strong><pre>' + (s.tracking_history ? JSON.stringify(JSON.parse(s.tracking_history), null, 2) : '-') + '</pre></div>';
+                if (data.live) {
+                    html += '<div class="mt-2"><strong>Live tracking:</strong><pre>' + JSON.stringify(data.live, null, 2) + '</pre></div>';
+                }
+                document.getElementById('shipmentContent').innerHTML = html;
+            }).catch(err => {
+                console.error(err);
+                document.getElementById('shipmentContent').innerText = 'Error fetching shipment';
+            });
+    }
+
+    function closeShipmentModal() {
+        document.getElementById('shipmentModal').classList.add('hidden');
+        document.getElementById('shipmentContent').innerHTML = '';
+    }
     </script>
 
 </body>

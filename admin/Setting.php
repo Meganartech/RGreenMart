@@ -13,7 +13,7 @@ $settings = $conn->query("SELECT * FROM settings LIMIT 1")->fetch(PDO::FETCH_ASS
 
 $gstRate = $settings['gst_rate'] ?? '';
 $discount = $settings['discount'] ?? '';
-$packagingCharge = $settings['packaging_charge'] ?? '';
+$pickuplocation_pincode  = $settings['pickuplocation_pincode'] ?? '';
 $notificationText = $settings['notification_text'] ?? '';
 $minimumOrder = $settings['minimum_order'] ?? '';
 ?>
@@ -60,9 +60,9 @@ $minimumOrder = $settings['minimum_order'] ?? '';
                 </div>
 
                 <div>
-                    <label for="packaging_charge" class="block text-sm font-medium text-gray-700">Packaging Charge:</label>
-                    <input type="number" name="packaging_charge" id="packaging_charge"
-                           value="<?= htmlspecialchars($packagingCharge) ?>" step="0.01" required
+                    <label for="pickuplocation_pincode" class="block text-sm font-medium text-gray-700">Pickup Location Pincode:</label>
+                    <input type="number" name="pickuplocation_pincode" id="pickuplocation_pincode"
+                           value="<?= htmlspecialchars($pickuplocation_pincode) ?>" step="0.01" required
                            class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 </div>
 

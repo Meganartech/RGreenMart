@@ -365,6 +365,46 @@ $message = urlencode(WHATSAPP_DEFAULT_MESSAGE);
 })();
 </script>
 
+<script>
+// Inject shipment status badges on the My Orders page by querying /api/get_shipment.php
+(function(){
+    if (!window.location.pathname || window.location.pathname.indexOf('my_orders.php') === -1) return;
+    document.querySelectorAll('a[href*="order_details.php?id="]').forEach(a=>{
+        try {
+            const url = new URL(a.href, window.location.origin);
+            const orderId = url.searchParams.get('id');
+            if (!orderId) return;
+            fetch('/api/admin/get_shipment.php?order_id=' + encodeURIComponent(orderId)).then(r=>r.json()).then(j=>{
+                const infoEl = a.querySelector('.order-info');
+                if (!infoEl) return;
+                const p = document.createElement('p');
+                p.style.margin = '6px 0';
+                if (j && j.success && j.shipment) {
+                    const sid = j.shipment.shipment_id || j.shipment.shipmentId || j.shipment.shipmentId || '';
+                    const status = j.shipment.status || (j.live && (j.live.data && j.live.data.status) ) || (j.live && j.live.data && j.live.data[0] && (j.live.data[0].status || j.live.data[0].title)) || 'Unknown';
+                    p.innerHTML = '<b>Shipment ID:</b> ' + (sid || (j.shipment.awb||'-')) + ' ';
+                    const span = document.createElement('span');
+                    span.style.cssText = 'display:inline-block;padding:6px 10px;border-radius:9999px;background:#3b82f6;color:#fff;font-weight:600;margin-left:8px;';
+                    span.textContent = (status || 'Unknown');
+                    p.appendChild(span);
+                    const aTrack = document.createElement('a');
+                    aTrack.href = 'track_shipment.php?order_id=' + encodeURIComponent(orderId);
+                    aTrack.style.marginLeft = '8px'; aTrack.style.color = '#2563eb'; aTrack.style.fontWeight='600';
+                    aTrack.textContent='Track';
+                    p.appendChild(aTrack);
+                } else {
+                    const span = document.createElement('span');
+                    span.style.cssText = 'display:inline-block;padding:6px 10px;border-radius:9999px;background:#9ca3af;color:#111;font-weight:600;';
+                    span.textContent = 'Not shipped yet';
+                    p.appendChild(span);
+                }
+                infoEl.appendChild(p);
+            }).catch(err=>{ console.warn('Shipment fetch failed for order', orderId, err); });
+        } catch (e) { console.error(e); }
+    });
+})();
+</script>
+
 <!-- ✅ WhatsApp Floating Button -->
 <a href="https://wa.me/<?php echo $whatsappNumber; ?>?text=<?php echo $message; ?>"
    class="whatsapp-float"

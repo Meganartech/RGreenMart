@@ -69,6 +69,7 @@ $sql = "
         o.overall_total,
         o.payment_status,
         o.status,
+        o.shipment_id,
         oi.id AS order_item_id," . $selectExtra . "
         i.name AS product_name,
         (
@@ -89,250 +90,212 @@ $sql = "
 $stmt = $conn->prepare($sql);
 $stmt->execute([$userId]);
 $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
-?>
 
-<!DOCTYPE html>
-<html>
-<head>
-    <title>My Orders</title>
-    <!-- FontAwesome Free -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <style>
-        .orders-container {
-            margin: 20px;
-            min-height: 50vh;
-            padding: 20px;
+// Get live shipment status for orders that have a shipment_id (uses Shiprocket shipments endpoint)
+$shipmentStatuses = [];
+$shipmentIds = [];
+foreach ($orders as $r) {
+    if (!empty($r['shipment_id'])) $shipmentIds[ $r['shipment_id'] ] = true;
+}
+if (!empty($shipmentIds)) {
+    try {
+        require_once __DIR__ . '/api/shiprocket.php';
+        $client = shiprocketClient();
+        foreach (array_keys($shipmentIds) as $sid) {
+            try {
+                $resp = $client->request('GET', '/shipments/' . urlencode($sid));
+                $label = null;
+                if (is_array($resp)) {
+                    if (isset($resp['status'])) $label = $resp['status'];
+                    elseif (isset($resp['data']['status'])) $label = $resp['data']['status'];
+                    elseif (isset($resp['shipment']['status'])) $label = $resp['shipment']['status'];
+                    elseif (isset($resp['shipment_status'])) $label = $resp['shipment_status'];
+                }
+                if (empty($label) && isset($resp['status_code'])) $label = $resp['status'] ?? 'Unknown';
+                if (empty($label)) $label = 'Unknown';
+                $shipmentStatuses[$sid] = ['label' => ucfirst(strtolower(str_replace('_', ' ', (string)$label))), 'raw' => $resp];
+            } catch (Exception $e) {
+                $shipmentStatuses[$sid] = ['label' => 'Error', 'raw' => ['error' => $e->getMessage()]];
+            }
         }
-        .order-card {
-            background: white;
-            border-radius: 12px;
-            padding: 15px;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            border-left: 6px solid #16a34a;
+    } catch (Exception $e) {
+        foreach (array_keys($shipmentIds) as $sid) {
+            $shipmentStatuses[$sid] = ['label' => 'Error'];
         }
-        .headingh2{
-            font-size: 2em;
-            font-weight: 700;
-            color: #14532d; /* dark green */
-            margin-bottom: 15px;
-        }
-        .order-card img {
-            width: 70px;
-            height: 70px;
-            border-radius: 10px;
-            object-fit: cover;
-            margin-right: 15px;
-        }
-        .order-info {
-            flex: 1;
-        }
-        .order-info h3 {
-            margin: 0;
-            font-size: 18px;
-            color: #166534;
-        }
-        .order-info p {
-            margin: 4px 0;
-            color: #444;
-            font-size: 14px;
-        }
-        .payment_badge {
-            display: inline-block;
-            padding: 6px 14px;
-            border-radius: 9999px; /* fully rounded pill */
-            font-size: 13px;
-            font-weight: 600;
-            color: white;
-            text-transform: uppercase;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .delivered { background: linear-gradient(135deg, #a7f3d0, #22c55e); color: #065f46; }
-        .ordered { background: linear-gradient(135deg, #a7f3d0, #22c55e); color: #065f46; }
-        .pending { background: linear-gradient(135deg, #fef08a, #eab308); color: #78350f; }
-        .cancelled { background: linear-gradient(135deg, #fecaca, #dc2626); color: #7f1d1d; }
-        .payment_badge:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
-    </style>
-</head>
-<body>
-<?php include "includes/header.php"; ?>
-
-<div class="orders-container">
-    <h2 class="headingh2">My Orders</h2>
-
-    <?php if (empty($orders)) { ?>
-        <p>You have no orders yet.</p>
-    <?php } else { ?>
-        <?php foreach ($orders as $row) { ?>
-            <a href="order_details.php?id=<?= $row['order_id'] ?>" style="text-decoration:none;">
-                <div class="order-card">
-                    <img src="/admin/<?= $row['product_image'] ?>" onerror="this.src='images/default.jpg';" alt="Product Image">
-
-                    <div class="order-info">
-                        <h3><?= htmlspecialchars($row['product_name'], ENT_QUOTES, 'UTF-8') ?></h3>
-                        <?php if(!empty($row['variant_weights'])): ?>
-                            <p style="margin:2px 0; color:#555; font-size:13px;">Variants: <?= htmlspecialchars($row['variant_weights']) ?></p>
-                        <?php elseif(!empty($row['variant_weight_value'])): ?>
-                            <p style="margin:2px 0; color:#555; font-size:13px;">Variant: <?= htmlspecialchars($row['variant_weight_value']) ?> <?= htmlspecialchars($row['variant_weight_unit']) ?></p>
-                        <?php endif; ?>
-                        <?php if(!empty($row['items_summary'])): ?>
-                            <p style="margin:2px 0; color:#555; font-size:13px;">Items: <?= htmlspecialchars(mb_strimwidth($row['items_summary'], 0, 140, '...')) ?></p>
-                        <?php endif; ?>
-                        <p style="margin:2px 0; color:#333; font-size:14px;">Total: ₹<?= number_format($row['overall_total'], 2) ?></p>
-                        <p><b>Order ID:</b> <?= $row['order_id'] ?></p>
-                        <p><b>Date:</b> <?= date("d M Y", strtotime($row['order_date'])) ?></p>
-                        <p><b>Total:</b> ₹<?= number_format($row['overall_total'], 2) ?></p>
-
-                        <span class="payment_badge <?= $row['status'] ?>">
-                            <?= ucfirst($row['status']) ?>
-                        </span>
-                    </div>
-
-                    <i class="fa-solid fa-chevron-right chevron"></i>
-                </div>
-            </a>
-        <?php } ?>
-    <?php } ?>
-</div>
-
-<?php require_once 'includes/footer.php'; ?>
-</body>
-</html>
-
-","newString":"$stmtItems = $conn->prepare($sqlItems);
-$stmtItems->execute([$orderId]);
-$orderItems = $stmtItems->fetchAll(PDO::FETCH_ASSOC);
-
-// Aggregate distinct variant weights present in this order for a brief summary
-$variantWeightsArr = [];
-foreach ($orderItems as $it) {
-    $w = trim((string)($it['variant_weight'] ?? $it['variant_weight_value'] ?? ''));
-    $u = trim((string)($it['variant_unit'] ?? $it['variant_weight_unit'] ?? ''));
-    if ($w !== '') {
-        $entry = trim($w . ' ' . $u);
-        if (!empty($entry)) $variantWeightsArr[$entry] = true;
     }
 }
-$variantWeightsSummary = implode(', ', array_keys($variantWeightsArr));"},{"explanation":"Add variant summary UI under address block in order_details.php","filePath":"c:\xampp\htdocs\Ecommerce\order_details.php","oldString":"            <p><span class=\"font-semibold\">Address:</span> <?= htmlspecialchars($order['address_line1']) ?> <?= htmlspecialchars($order['address_line2']) ?>, <?= htmlspecialchars($order['city']) ?>, <?= htmlspecialchars($order['state']) ?> - <?= htmlspecialchars($order['pincode']) ?></p>","newString":"            <p><span class=\"font-semibold\">Address:</span> <?= htmlspecialchars($order['address_line1']) ?> <?= htmlspecialchars($order['address_line2']) ?>, <?= htmlspecialchars($order['city']) ?>, <?= htmlspecialchars($order['state']) ?> - <?= htmlspecialchars($order['pincode']) ?></p>
-            <?php if(!empty($variantWeightsSummary)): ?>
-                <p><span class=\"font-semibold\">Variants in order:</span> <?= htmlspecialchars($variantWeightsSummary) ?></p>
-            <?php endif; ?>
-
-$stmt = $conn->prepare($sql);
-$stmt->execute([$userId]);
-$orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>My Orders</title>
     <!-- FontAwesome Free -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
-        .orders-container {
-            margin: 20px;
-            min-height: 50vh;
-            padding: 20px;
+    .orders-container {
+        margin: 20px;
+        min-height: 50vh;
+        padding: 20px;
+    }
+
+    .order-card {
+        background: white;
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        border-left: 6px solid #16a34a;
+    }
+
+    .headingh2 {
+        font-size: 2em;
+        font-weight: 700;
+        color: #14532d;
+        /* dark green */
+        margin-bottom: 15px;
+    }
+
+    .order-card img {
+        width: 70px;
+        height: 70px;
+        border-radius: 10px;
+        object-fit: cover;
+        margin-right: 15px;
+    }
+
+
+
+   
+    .delivered {
+        background: linear-gradient(135deg, #a7f3d0, #22c55e);
+        color: #065f46;
+    }
+
+    .ordered {
+        background: linear-gradient(135deg, #a7f3d0, #22c55e);
+        color: #065f46;
+    }
+    .pending {
+        background: linear-gradient(135deg, #fef08a, #eab308);
+        color: #78350f;
+    }
+
+    .cancelled {
+        background: linear-gradient(135deg, #fecaca, #dc2626);
+        color: #7f1d1d;
+    }
+
+    .payment_badge:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .order-info {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .order-info h3 {
+        margin: 0;
+        font-size: 17px;
+        color: #166534;
+    }
+
+    .order-info p {
+        margin: 0;
+        color: #555;
+        font-size: 13px;
+    }
+
+    .order-meta {
+        margin-top: 6px;
+        display: grid;
+        grid-template-columns: repeat(2, auto);
+        gap: 6px 14px;
+        font-size: 13px;
+        color: #333;
+    }
+
+    .payment_badge {
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    /* Mobile friendly */
+    @media (max-width: 600px) {
+        .order-meta {
+            grid-template-columns: 1fr;
         }
-        .order-card {
-            background: white;
-            border-radius: 12px;
-            padding: 15px;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            border-left: 6px solid #16a34a;
-        }
-        .headingh2{
-            font-size: 2em;
-            font-weight: 700;
-            color: #14532d; /* dark green */
-            margin-bottom: 15px;
-        }
-        .order-card img {
-            width: 70px;
-            height: 70px;
-            border-radius: 10px;
-            object-fit: cover;
-            margin-right: 15px;
-        }
-        .order-info {
-            flex: 1;
-        }
-        .order-info h3 {
-            margin: 0;
-            font-size: 18px;
-            color: #166534;
-        }
-        .order-info p {
-            margin: 4px 0;
-            color: #444;
-            font-size: 14px;
-        }
-        .payment_badge {
-            display: inline-block;
-            padding: 6px 14px;
-            border-radius: 9999px; /* fully rounded pill */
-            font-size: 13px;
-            font-weight: 600;
-            color: white;
-            text-transform: uppercase;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .delivered { background: linear-gradient(135deg, #a7f3d0, #22c55e); color: #065f46; }
-        .ordered { background: linear-gradient(135deg, #a7f3d0, #22c55e); color: #065f46; }
-        .pending { background: linear-gradient(135deg, #fef08a, #eab308); color: #78350f; }
-        .cancelled { background: linear-gradient(135deg, #fecaca, #dc2626); color: #7f1d1d; }
-        .payment_badge:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+    }
     </style>
 </head>
+
 <body>
-<?php include "includes/header.php"; ?>
+    <?php include "includes/header.php"; ?>
 
-<div class="orders-container">
-    <h2 class="headingh2">My Orders</h2>
+    <div class="orders-container">
+        <h2 class="headingh2">My Orders</h2>
 
-    <?php if (empty($orders)) { ?>
+        <?php if (empty($orders)) { ?>
         <p>You have no orders yet.</p>
-    <?php } else { ?>
+        <?php } else { ?>
         <?php foreach ($orders as $row) { ?>
-            <a href="order_details.php?id=<?= $row['order_id'] ?>" style="text-decoration:none;">
-                <div class="order-card">
-                    <img src="/admin/<?= $row['product_image'] ?>" onerror="this.src='images/default.jpg';" alt="Product Image">
+        <a href="order_details.php?id=<?= $row['order_id'] ?>" style="text-decoration:none;">
+         <div class="order-card">
+    <img src="/admin/<?= $row['product_image'] ?>"
+         onerror="this.src='images/default.jpg';"
+         alt="Product Image">
 
-                    <div class="order-info">
-                        <h3><?= htmlspecialchars($row['product_name'], ENT_QUOTES, 'UTF-8') ?></h3>
-                        <?php if(!empty($row['variant_weights'])): ?>
-                            <p style="margin:2px 0; color:#555; font-size:13px;">Variants: <?= htmlspecialchars($row['variant_weights']) ?></p>
-                        <?php elseif(!empty($row['variant_weight_value'])): ?>
-                            <p style="margin:2px 0; color:#555; font-size:13px;">Variant: <?= htmlspecialchars($row['variant_weight_value']) ?> <?= htmlspecialchars($row['variant_weight_unit']) ?></p>
-                        <?php endif; ?>
-                        <?php if(!empty($row['items_summary'])): ?>
-                            <p style="margin:2px 0; color:#555; font-size:13px;">Items: <?= htmlspecialchars(mb_strimwidth($row['items_summary'], 0, 140, '...')) ?></p>
-                        <?php endif; ?>
-                        <p style="margin:2px 0; color:#333; font-size:14px;">Total: ₹<?= number_format($row['overall_total'], 2) ?></p>
-                        <p><b>Order ID:</b> <?= $row['order_id'] ?></p>
-                        <p><b>Date:</b> <?= date("d M Y", strtotime($row['order_date'])) ?></p>
-                        <p><b>Total:</b> ₹<?= number_format($row['overall_total'], 2) ?></p>
+    <div class="order-info">
+        <h3><?= htmlspecialchars($row['product_name'], ENT_QUOTES, 'UTF-8') ?></h3>
 
-                        <span class="payment_badge <?= $row['status'] ?>">
-                            <?= ucfirst($row['status']) ?>
-                        </span>
-                    </div>
+        <!-- Variant / Items row -->
+        <div class="order-sub">
+            <?php if(!empty($row['variant_weights'])): ?>
+                <span><?= htmlspecialchars($row['variant_weights']) ?></span>
+            <?php elseif(!empty($row['variant_weight_value'])): ?>
+                <span><?= htmlspecialchars($row['variant_weight_value']) ?>
+                    <?= htmlspecialchars($row['variant_weight_unit']) ?></span>
+            <?php endif; ?>
 
-                    <i class="fa-solid fa-chevron-right chevron"></i>
-                </div>
-            </a>
-        <?php } ?>
-    <?php } ?>
+            <?php if(!empty($row['items_summary'])): ?>
+                <span>• <?= htmlspecialchars(mb_strimwidth($row['items_summary'], 0, 60, '...')) ?></span>
+            <?php endif; ?>
+        </div>
+
+        <!-- Date + Price -->
+        <div class="order-bottom">
+            <span class="order-date">
+                <?= date("d M Y", strtotime($row['order_date'])) ?>
+            </span>
+
+            <span class="order-price">
+                ₹<?= number_format($row['overall_total'], 2) ?>
+            </span>
+        </div>
+    </div>
+
+    <div class="order-right">
+       
+        <i class="fa-solid fa-chevron-right chevron"></i>
+    </div>
 </div>
 
-<?php require_once 'includes/footer.php'; ?>
+        </a>
+        <?php } ?>
+        <?php } ?>
+    </div>
+
+    <?php require_once 'includes/footer.php'; ?>
 </body>
+
 </html>

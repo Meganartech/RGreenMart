@@ -13,7 +13,6 @@ const selectors = {
     overallTotalDisplay: document.getElementById('overallTotal'),
     finalTotalDisplay: document.getElementById('finalTotal'),
     totalProductsCount: document.querySelector('.total_products_count'),
-    netTotalSpan: document.querySelector('.net_total'),
     discountTotalSpan: document.querySelector('.discount_total'),
     subTotalSpan: document.querySelector('.sub_total'),
     applyCouponButton: document.getElementById('applyCoupon'),

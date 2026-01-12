@@ -43,8 +43,7 @@ try {
     $customerLandmark= $order['landmark'];
     $enquiryNumber   = $order['enquiry_no'];
     $orderedDateTime = $order['order_date'];
-    $packingcharge   = $order['packing_charge'];
-    $netTotal        = $order['net_total'];
+    $shippingCharge   = $order['shipping_charge'];
     $overallTotal    = $order['overall_total'];
     $subtotal        = $order['subtotal'];
 
@@ -118,7 +117,6 @@ try {
   $subtotal = 0;           // sum of original prices * quantity
 $netTotal = 0;            // sum of discounted price * quantity
 $totalDiscountAmount = 0; // sum of total discount
-$packingpercent = 3;      // packing charge percent
 
 $rowsHtml = "";
 
@@ -151,9 +149,7 @@ foreach ($itemsBought as $index => $item) {
     </tr>";
 }
 
-// Calculate packing charge and overall total
-$packingcharge = ($netTotal * $packingpercent) / 100;
-$overallTotal = $netTotal + $packingcharge;
+$overallTotal = $netTotal + $shippingCharge;
 
         // Generate HTML for PDF
         $html = "
@@ -233,7 +229,7 @@ $overallTotal = $netTotal + $packingcharge;
 						<tr><td colspan='6' class='right'>Gross Total</td><td>" . number_format($subtotal, 2) . "</td></tr>
                         <tr><td colspan='6' class='right'>Discount Amount (-90%)</td><td> - " . number_format($totalDiscountAmount, 2) . "</td></tr>
                         <tr><td colspan='6' class='right bold'>Net Amount</td><td class='bold'>" . number_format($netTotal, 2) . "</td></tr>
-						<tr><td colspan='6' class='right bold'>Packing Charge (3%)</td><td class='bold'>" . number_format($packingcharge, 2) . "</td></tr>
+						<tr><td colspan='6' class='right bold'>Shipping Charge </td><td class='bold'>" . number_format($shippingCharge, 2) . "</td></tr>
                         <tr><td colspan='6' class='right bold'>Overall Total</td><td class='bold'>" . number_format($overallTotal, 2) . "</td></tr>
                     </table>
 
