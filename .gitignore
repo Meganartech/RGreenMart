@@ -28,6 +28,8 @@ assets/images/
 *.local.php
 
 admin/Uploads/
+admin/categoryimages/
+admin/brandimages/
 
 
 # -----------------------------------------------------------------
