@@ -250,6 +250,7 @@ $billsDir = realpath(__DIR__ . '/../bills');
     </div>
 </div>
 
+
     <script>
         function openAdminCancelModal(orderId) {
     document.getElementById("adminCancelOrderId").value = orderId;
@@ -303,32 +304,35 @@ fetch("/api/admin/cancel_order.php", {
         });
     });
 
-    // Shiprocket: create shipment and view
-    function createShipment(orderId, btn) {
+    // Create shipment directly using values from the orders table (no modal / courier preference UI)
+    async function createShipment(orderId, btnEl) {
         if (!confirm('Create shipment for order #' + orderId + '?')) return;
-        btn.disabled = true;
-        const orig = btn.innerText;
-        btn.innerText = 'Creating...';
-        fetch('/api/admin/create_shipment.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'order_id=' + encodeURIComponent(orderId)
-        }).then(r => r.json()).then(data => {
-            btn.disabled = false;
-            btn.innerText = orig;
-            if (data.success) {
-                alert('Shipment created. AWB: ' + (data.awb || 'N/A'));
-                location.reload();
-            } else {
-                alert('Error: ' + data.message);
+        const btn = btnEl || null;
+        if (btn) { btn.disabled = true; btn.innerText = 'Creating...'; }
+        const body = new URLSearchParams();
+        body.append('order_id', orderId);
+        body.append('auto_assign', 1);
+        try {
+            const res = await fetch('/api/admin/create_shipment.php', { method: 'POST', body: body.toString(), headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+            const data = await res.json();
+            if (btn) { btn.disabled = false; btn.innerText = 'Create Shipment'; }
+            if (!data.success) {
+                alert('Error creating shipment: ' + (data.message || JSON.stringify(data)));
                 console.log(data);
+                return;
             }
-        }).catch(err => {
+            alert('Shipment created. AWB: ' + (data.awb || 'N/A'));
+            if (data.label_url) window.open(data.label_url, '_blank');
+            location.reload();
+        } catch (err) {
             console.error(err);
-            btn.disabled = false;
-            btn.innerText = orig;
             alert('Network error');
-        });
+            if (btn) { btn.disabled = false; btn.innerText = 'Create Shipment'; }
+        }
+    }
+
+    function downloadAWB(orderId) {
+        window.open('/api/admin/download_awb.php?order_id=' + encodeURIComponent(orderId), '_blank');
     }
 
     function viewShipment(orderId) {

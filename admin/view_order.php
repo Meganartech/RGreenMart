@@ -207,6 +207,21 @@ $pdfExists = file_exists($pdfPath);
             <!-- Toast Box -->
 <div id="copyToast">Copied to clipboard!</div>
 
+<?php
+// Fetch shipment record for this order (if any)
+$stmtS = $conn->prepare('SELECT * FROM shipments WHERE order_id = ? LIMIT 1');
+$stmtS->execute([$order_id]);
+$shipmentRec = $stmtS->fetch(PDO::FETCH_ASSOC);
+?>
+
+<?php if (!empty($shipmentRec)): ?>
+    <p><b>AWB: </b> <?= htmlspecialchars($shipmentRec['awb'] ?? '-') ?>
+    <?php if (!empty($shipmentRec['awb'])): ?>
+        <a href="/api/admin/download_awb.php?order_id=<?= $order_id ?>" target="_blank" class="px-2 py-1 bg-indigo-600 text-white rounded ml-2">Download Label</a>
+    <?php endif; ?>
+    </p>
+<?php endif; ?>
+
 <p>
     <b>Order ID: </b> 
     <span id="orderId"><?= $order['razorpay_order_id'] ?></span>
